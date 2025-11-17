@@ -1,0 +1,49 @@
+[gd_scene load_steps=8 format=3 uid="uid://dax3bcldjh67a"]
+
+[ext_resource type="Texture2D" uid="uid://cyfrqc6m8d58" path="res://assets/Dungeon/Sprites/torch_1.png" id="1_quop4"]
+[ext_resource type="Texture2D" uid="uid://cx2yjnj7a7g1p" path="res://assets/Dungeon/Sprites/torch_2.png" id="2_kv17b"]
+[ext_resource type="Texture2D" uid="uid://dy4iai8sgfhg5" path="res://assets/Dungeon/Sprites/torch_3.png" id="3_2ug17"]
+[ext_resource type="Texture2D" uid="uid://d1ykruk1jx8ek" path="res://assets/Dungeon/Sprites/torch_4.png" id="4_ra230"]
+
+[sub_resource type="Gradient" id="Gradient_quop4"]
+offsets = PackedFloat32Array(0.08615384, 0.34461537, 0.61230767, 0.71692306, 0.83692306, 1)
+colors = PackedColorArray(1, 1, 1, 1, 0.86112, 0.65327156, 0.24096388, 1, 0.8694903, 0.55785984, 0.20898357, 1, 0.8601902, 0.47359288, 0.1875679, 1, 0.7336689, 0.27952865, 0.04604266, 1, 0, 0, 0, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_kv17b"]
+gradient = SubResource("Gradient_quop4")
+width = 128
+height = 128
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_quop4"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_kv17b")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_2ug17")
+}, {
+"duration": 1.0,
+"texture": ExtResource("1_quop4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_ra230")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="torch_animated" type="Node2D"]
+
+[node name="PointLight2D" type="PointLight2D" parent="."]
+position = Vector2(0, -3)
+texture = SubResource("GradientTexture2D_kv17b")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_quop4")
+autoplay = "default"
+frame_progress = 0.5433019

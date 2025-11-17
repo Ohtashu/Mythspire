@@ -1,0 +1,34 @@
+[gd_scene load_steps=6 format=3 uid="uid://cxeiil48p0cdh"]
+
+[ext_resource type="Texture2D" uid="uid://dq38qpiyhie1n" path="res://GUI/player_hud/HealthBarPanel_160x41.png" id="1_lgs1x"]
+[ext_resource type="Texture2D" uid="uid://bh6qy4vco6vmu" path="res://GUI/player_hud/ValueRed_120x8.png" id="2_dhnsi"]
+[ext_resource type="Script" uid="uid://cj8yeu3js0yx7" path="res://scripts/health_progress_bar.gd" id="3_gsc7k"]
+[ext_resource type="Texture2D" uid="uid://dlpkdps1dyeeh" path="res://GUI/player_hud/BlackBigCircleBoxWithBorder_27x27.png" id="4_5txje"]
+[ext_resource type="Texture2D" uid="uid://b0u340kn7vj5u" path="res://GUI/player_hud/HeartIcons_32x32.png" id="5_0gngv"]
+
+[node name="player_hud" type="CanvasLayer"]
+
+[node name="Control" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TextureProgressBar" type="TextureProgressBar" parent="Control"]
+layout_mode = 0
+offset_top = -1.0
+offset_right = 160.0
+offset_bottom = 40.0
+texture_under = ExtResource("1_lgs1x")
+texture_progress = ExtResource("2_dhnsi")
+script = ExtResource("3_gsc7k")
+
+[node name="BlackBigCircleBoxWithBorder27x27" type="Sprite2D" parent="Control"]
+position = Vector2(18, 19)
+texture = ExtResource("4_5txje")
+
+[node name="HeartIcons32x32" type="Sprite2D" parent="Control"]
+position = Vector2(18, 21)
+texture = ExtResource("5_0gngv")

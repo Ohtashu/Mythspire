@@ -1,0 +1,62 @@
+[gd_scene load_steps=5 format=3 uid="uid://ke7pd5x6iblc"]
+
+[ext_resource type="PackedScene" uid="uid://bcmpp805rto30" path="res://scene/player.tscn" id="1_5kiuu"]
+[ext_resource type="PackedScene" uid="uid://bppju3ncchirq" path="res://scene/dungeon.tscn" id="1_dbls1"]
+[ext_resource type="PackedScene" uid="uid://dax3bcldjh67a" path="res://scene/torch_animated.tscn" id="3_33cqm"]
+[ext_resource type="PackedScene" uid="uid://c54qf2fe3xfpq" path="res://scene/animated_candle.tscn" id="4_xwcet"]
+
+[node name="Game" type="Node2D"]
+y_sort_enabled = true
+
+[node name="dungeon_scene" parent="." instance=ExtResource("1_dbls1")]
+visibility_layer = 2
+
+[node name="torch_animated6" parent="dungeon_scene" instance=ExtResource("3_33cqm")]
+top_level = true
+position = Vector2(601, 291)
+
+[node name="torch_animated7" parent="dungeon_scene" instance=ExtResource("3_33cqm")]
+top_level = true
+position = Vector2(170, 19)
+
+[node name="torch_animated" parent="dungeon_scene" instance=ExtResource("3_33cqm")]
+top_level = true
+position = Vector2(488, 189)
+
+[node name="torch_animated5" parent="dungeon_scene" instance=ExtResource("3_33cqm")]
+top_level = true
+position = Vector2(456, 290)
+
+[node name="torch_animated2" parent="dungeon_scene" instance=ExtResource("3_33cqm")]
+position = Vector2(20, 211)
+
+[node name="torch_animated4" parent="dungeon_scene" instance=ExtResource("3_33cqm")]
+position = Vector2(113, 394)
+
+[node name="torch_animated3" parent="dungeon_scene" instance=ExtResource("3_33cqm")]
+top_level = true
+position = Vector2(345, 197)
+
+[node name="torch_animated8" parent="dungeon_scene" instance=ExtResource("3_33cqm")]
+top_level = true
+position = Vector2(552, 191)
+
+[node name="torch_animated9" parent="dungeon_scene" instance=ExtResource("3_33cqm")]
+position = Vector2(757, 209)
+
+[node name="animated_candle" parent="dungeon_scene" instance=ExtResource("4_xwcet")]
+position = Vector2(485, 81)
+
+[node name="animated_candle2" parent="dungeon_scene" instance=ExtResource("4_xwcet")]
+position = Vector2(558, 85)
+
+[node name="Player" parent="." instance=ExtResource("1_5kiuu")]
+position = Vector2(524, 92)
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+position = Vector2(0, 22)
+
+[node name="DirectionalLight2D" type="DirectionalLight2D" parent="."]
+color = Color(0.20871013, 0.20871016, 0.20871013, 1)
+energy = 0.27
+blend_mode = 2

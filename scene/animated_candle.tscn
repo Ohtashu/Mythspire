@@ -1,0 +1,50 @@
+[gd_scene load_steps=8 format=3 uid="uid://c54qf2fe3xfpq"]
+
+[ext_resource type="Texture2D" uid="uid://c5886ye6agxca" path="res://assets/Dungeon/Sprites/candleA_01.png" id="1_3t7kt"]
+[ext_resource type="Texture2D" uid="uid://dj0eeonm1sdsj" path="res://assets/Dungeon/Sprites/candleA_02.png" id="2_3m3fu"]
+[ext_resource type="Texture2D" uid="uid://jaqs1n4hg6my" path="res://assets/Dungeon/Sprites/candleA_03.png" id="3_bhe13"]
+[ext_resource type="Texture2D" uid="uid://cyxb5txx1obev" path="res://assets/Dungeon/Sprites/candleA_04.png" id="4_qr7i3"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_6owho"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_3t7kt")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_3m3fu")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_bhe13")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_qr7i3")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[sub_resource type="Gradient" id="Gradient_rhwk7"]
+offsets = PackedFloat32Array(0.12307692, 0.36307693, 0.5661538, 0.59384614, 0.82153845, 0.9723077)
+colors = PackedColorArray(1, 1, 1, 1, 0.9607843, 0.68235296, 0.22352941, 1, 0.8738952, 0.5362861, 0.2759068, 1, 0.88311076, 0.551778, 0.27035162, 1, 0.6745098, 0.1764706, 0, 1, 0, 0, 0, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_wgc45"]
+gradient = SubResource("Gradient_rhwk7")
+width = 32
+height = 32
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[node name="animated_candle" type="Node2D"]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -7)
+sprite_frames = SubResource("SpriteFrames_6owho")
+autoplay = "default"
+frame_progress = 0.54338264
+
+[node name="PointLight2D" type="PointLight2D" parent="."]
+position = Vector2(0, -11)
+texture = SubResource("GradientTexture2D_wgc45")
