@@ -51,4 +51,3 @@ Player explores a tiny 10–15 room dungeon.
 ## License
 
 See individual asset licenses in their respective directories.
-
