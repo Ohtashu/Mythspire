@@ -1,0 +1,99 @@
+[gd_scene load_steps=10 format=3 uid="uid://cj47f3kac0xkp"]
+
+[ext_resource type="Script" uid="uid://12d8dg7t7vss" path="res://scripts/game_over.gd" id="1_gameover"]
+[ext_resource type="Texture2D" uid="uid://bemxm4g0ihpe7" path="res://assets/buttons/ButtonE_Unpressed.png" id="2_0wuup"]
+[ext_resource type="Texture2D" uid="uid://ov2sopo78txa" path="res://assets/buttons/ButtonE_Pressed.png" id="3_nhro7"]
+[ext_resource type="Texture2D" uid="uid://bjj0jscjildw" path="res://assets/buttons/ButtonE_Highlighted.png" id="4_qbgy4"]
+[ext_resource type="Script" uid="uid://bva4qfw5hgh0x" path="res://scripts/tryagain.gd" id="5_jy3q7"]
+[ext_resource type="FontFile" uid="uid://dghwpyh5twng5" path="res://fonts/DeadRevolverGame.ttf" id="6_46orx"]
+[ext_resource type="Script" uid="uid://qujvi62k58d2" path="res://scripts/menu.gd" id="7_km567"]
+[ext_resource type="AudioStream" uid="uid://cn082fdrtxplr" path="res://audio/player/grand_piano_defeated.wav" id="8_nhro7"]
+[ext_resource type="FontFile" uid="uid://ob526hfhuufw" path="res://fonts/DeadRevolverDisplay.ttf" id="8_oytb5"]
+
+[node name="game_over" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_gameover")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.627451)
+
+[node name="ContentContainer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -104.0
+offset_top = -57.0
+offset_right = 96.0
+offset_bottom = 43.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="tryagain_button" type="TextureButton" parent="ContentContainer"]
+layout_mode = 0
+offset_left = 43.0
+offset_top = 29.0
+offset_right = 162.0
+offset_bottom = 71.0
+texture_normal = ExtResource("2_0wuup")
+texture_pressed = ExtResource("3_nhro7")
+texture_hover = ExtResource("4_qbgy4")
+stretch_mode = 0
+script = ExtResource("5_jy3q7")
+
+[node name="Label" type="Label" parent="ContentContainer/tryagain_button"]
+layout_mode = 0
+offset_left = 9.0
+offset_top = 12.0
+offset_right = 111.0
+offset_bottom = 35.0
+theme_override_fonts/font = ExtResource("6_46orx")
+theme_override_font_sizes/font_size = 16
+text = "Try Again"
+
+[node name="main_menu_button" type="TextureButton" parent="ContentContainer"]
+layout_mode = 0
+offset_left = 43.0
+offset_top = 78.0
+offset_right = 162.0
+offset_bottom = 118.0
+texture_normal = ExtResource("2_0wuup")
+texture_pressed = ExtResource("3_nhro7")
+texture_hover = ExtResource("4_qbgy4")
+stretch_mode = 0
+script = ExtResource("7_km567")
+
+[node name="Label" type="Label" parent="ContentContainer/main_menu_button"]
+layout_mode = 0
+offset_left = 9.0
+offset_top = 11.0
+offset_right = 111.0
+offset_bottom = 34.0
+theme_override_fonts/font = ExtResource("6_46orx")
+text = "main menu"
+
+[node name="game_over_music" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("8_nhro7")
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 0
+offset_left = 255.0
+offset_top = 106.0
+offset_right = 386.0
+offset_bottom = 129.0
+theme_override_fonts/font = ExtResource("8_oytb5")
+theme_override_font_sizes/font_size = 24
+text = "Game Over"

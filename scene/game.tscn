@@ -1,12 +1,21 @@
-[gd_scene load_steps=5 format=3 uid="uid://ke7pd5x6iblc"]
+[gd_scene load_steps=11 format=3 uid="uid://ke7pd5x6iblc"]
 
 [ext_resource type="PackedScene" uid="uid://bcmpp805rto30" path="res://scene/player.tscn" id="1_5kiuu"]
 [ext_resource type="PackedScene" uid="uid://bppju3ncchirq" path="res://scene/dungeon.tscn" id="1_dbls1"]
 [ext_resource type="PackedScene" uid="uid://dax3bcldjh67a" path="res://scene/torch_animated.tscn" id="3_33cqm"]
 [ext_resource type="PackedScene" uid="uid://c54qf2fe3xfpq" path="res://scene/animated_candle.tscn" id="4_xwcet"]
+[ext_resource type="PackedScene" uid="uid://cxwmoxwjutte8" path="res://scene/enemy_spawner.tscn" id="5_p1ry8"]
+[ext_resource type="PackedScene" uid="uid://cxeiil48p0cdh" path="res://scene/player_hud.tscn" id="5_xlg7c"]
+[ext_resource type="Script" uid="uid://couogjjr4g3ll" path="res://scripts/level_manager.gd" id="6_levelmgr"]
+[ext_resource type="PackedScene" uid="uid://cnj868krns2aj" path="res://scene/pause_menu.tscn" id="7_pause"]
+[ext_resource type="Script" uid="uid://3qv4sxv003d4" path="res://scripts/camera_shake.gd" id="7_yq8tf"]
+[ext_resource type="PackedScene" uid="uid://cj47f3kac0xkp" path="res://scene/game_over.tscn" id="8_gameover"]
 
 [node name="Game" type="Node2D"]
-y_sort_enabled = true
+script = ExtResource("6_levelmgr")
+
+[node name="EnemySpawner" parent="." instance=ExtResource("5_p1ry8")]
+position = Vector2(211, 118)
 
 [node name="dungeon_scene" parent="." instance=ExtResource("1_dbls1")]
 visibility_layer = 2
@@ -54,9 +63,25 @@ position = Vector2(558, 85)
 position = Vector2(524, 92)
 
 [node name="Camera2D" type="Camera2D" parent="Player"]
-position = Vector2(0, 22)
+position = Vector2(0, -7)
+zoom = Vector2(1.5, 1.5)
+limit_left = -5
+limit_top = -44
+limit_right = 859
+limit_bottom = 488
+script = ExtResource("7_yq8tf")
 
 [node name="DirectionalLight2D" type="DirectionalLight2D" parent="."]
 color = Color(0.20871013, 0.20871016, 0.20871013, 1)
 energy = 0.27
 blend_mode = 2
+
+[node name="player_hud" parent="." instance=ExtResource("5_xlg7c")]
+
+[node name="pause_menu_layer" type="CanvasLayer" parent="."]
+
+[node name="pause_menu" parent="pause_menu_layer" instance=ExtResource("7_pause")]
+
+[node name="game_over_layer" type="CanvasLayer" parent="."]
+
+[node name="game_over" parent="game_over_layer" instance=ExtResource("8_gameover")]

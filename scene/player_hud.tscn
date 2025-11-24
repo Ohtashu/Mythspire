@@ -1,34 +1,122 @@
-[gd_scene load_steps=6 format=3 uid="uid://cxeiil48p0cdh"]
+[gd_scene load_steps=15 format=3 uid="uid://cxeiil48p0cdh"]
 
-[ext_resource type="Texture2D" uid="uid://dq38qpiyhie1n" path="res://GUI/player_hud/HealthBarPanel_160x41.png" id="1_lgs1x"]
-[ext_resource type="Texture2D" uid="uid://bh6qy4vco6vmu" path="res://GUI/player_hud/ValueRed_120x8.png" id="2_dhnsi"]
-[ext_resource type="Script" uid="uid://cj8yeu3js0yx7" path="res://scripts/health_progress_bar.gd" id="3_gsc7k"]
-[ext_resource type="Texture2D" uid="uid://dlpkdps1dyeeh" path="res://GUI/player_hud/BlackBigCircleBoxWithBorder_27x27.png" id="4_5txje"]
-[ext_resource type="Texture2D" uid="uid://b0u340kn7vj5u" path="res://GUI/player_hud/HeartIcons_32x32.png" id="5_0gngv"]
+[ext_resource type="Script" uid="uid://cv255ldwgo6y7" path="res://scripts/exp_bar.gd" id="1_5txje"]
+[ext_resource type="Texture2D" uid="uid://2b4ccr7lhslf" path="res://GUI/main_menu/MinimalBarBackground.png" id="1_111gq"]
+[ext_resource type="Texture2D" uid="uid://hbb0enaagf1v" path="res://GUI/main_menu/MinimalBarForeground.png" id="2_cc1i8"]
+[ext_resource type="Script" uid="uid://d3s2e7tydpd70" path="res://scripts/player_health_boxes.gd" id="2_health_boxes"]
+[ext_resource type="Texture2D" uid="uid://diyc4nucgywm3" path="res://GUI/main_menu/MinimalBarFill.png" id="3_g8712"]
+[ext_resource type="Texture2D" uid="uid://dkj0pv4tvwlnh" path="res://GUI/player_hud/PlayerSmallFrame.png" id="4_xo60m"]
+[ext_resource type="Texture2D" uid="uid://boxgbt4dyv8bq" path="res://GUI/player_hud/Spear01(1).png" id="5_lgs1x"]
+[ext_resource type="Texture2D" uid="uid://cqgpi7c4yxnoe" path="res://GUI/main_menu/FighterBarBackground.png" id="6_cc1i8"]
+[ext_resource type="Script" uid="uid://yj3c48uqja05" path="res://scripts/spear_button.gd" id="6_dhnsi"]
+[ext_resource type="Texture2D" uid="uid://4vtdlgu5ba1w" path="res://GUI/main_menu/FighterBarFill.png" id="7_g8712"]
+[ext_resource type="FontFile" uid="uid://bhakmapj7fydx" path="res://fonts/DeadRevolverGameCompact.ttf" id="11_cc1i8"]
+[ext_resource type="Script" uid="uid://c3ix04be026qd" path="res://scripts/current_level.gd" id="12_g8712"]
+[ext_resource type="Script" uid="uid://b4une1nywta3q" path="res://scripts/user_profile.gd" id="13_user_profile"]
+[ext_resource type="AudioStream" uid="uid://ds8wbahycarl7" path="res://audio/main_menu/pop_3.wav" id="14_vte8x"]
 
 [node name="player_hud" type="CanvasLayer"]
 
-[node name="Control" type="Control" parent="."]
+[node name="exp_control" type="Control" parent="."]
 layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+anchors_preset = 0
+offset_left = 48.0
+offset_top = 12.0
+offset_right = 88.0
+offset_bottom = 52.0
 
-[node name="TextureProgressBar" type="TextureProgressBar" parent="Control"]
+[node name="expbar" type="TextureProgressBar" parent="exp_control"]
 layout_mode = 0
-offset_top = -1.0
-offset_right = 160.0
-offset_bottom = 40.0
-texture_under = ExtResource("1_lgs1x")
-texture_progress = ExtResource("2_dhnsi")
-script = ExtResource("3_gsc7k")
+offset_left = 10.0
+offset_top = 26.0
+offset_right = 26.0
+offset_bottom = 33.0
+scale = Vector2(8, 1)
+value = 100.0
+texture_under = ExtResource("1_111gq")
+texture_over = ExtResource("2_cc1i8")
+texture_progress = ExtResource("3_g8712")
+texture_progress_offset = Vector2(2, 2)
+script = ExtResource("1_5txje")
 
-[node name="BlackBigCircleBoxWithBorder27x27" type="Sprite2D" parent="Control"]
-position = Vector2(18, 19)
-texture = ExtResource("4_5txje")
+[node name="health_control" type="Control" parent="."]
+layout_direction = 4
+layout_mode = 3
+anchors_preset = 0
+offset_left = 48.0
+offset_top = 12.0
+offset_right = 48.0
+offset_bottom = 12.0
+scale = Vector2(1.5, 1.5)
+script = ExtResource("2_health_boxes")
 
-[node name="HeartIcons32x32" type="Sprite2D" parent="Control"]
-position = Vector2(18, 21)
-texture = ExtResource("5_0gngv")
+[node name="main_healthbar" type="TextureProgressBar" parent="health_control"]
+layout_mode = 0
+offset_left = 6.6666665
+offset_top = 6.666667
+offset_right = 38.666668
+offset_bottom = 16.666668
+scale = Vector2(3, 1)
+max_value = 25.0
+value = 25.0
+texture_under = ExtResource("6_cc1i8")
+texture_progress = ExtResource("7_g8712")
+texture_progress_offset = Vector2(1, 1)
+
+[node name="profile" type="Button" parent="health_control"]
+layout_mode = 0
+offset_left = -26.000002
+offset_top = -5.333334
+offset_right = -1.0000019
+offset_bottom = 14.666666
+scale = Vector2(1.5, 1.5)
+icon = ExtResource("4_xo60m")
+flat = true
+script = ExtResource("13_user_profile")
+
+[node name="hotbar_control" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 248.0
+offset_top = 223.00002
+offset_right = 288.0
+offset_bottom = 263.0
+scale = Vector2(1.5, 1.5)
+
+[node name="hotbar" type="GridContainer" parent="hotbar_control"]
+texture_filter = 1
+layout_mode = 1
+offset_left = 11.333333
+offset_top = 54.000008
+offset_right = 49.333332
+offset_bottom = 78.000015
+scale = Vector2(1.2, 1.2)
+columns = 2
+
+[node name="spear_button" type="Button" parent="hotbar_control/hotbar"]
+layout_mode = 2
+icon = ExtResource("5_lgs1x")
+script = ExtResource("6_dhnsi")
+
+[node name="gun_button" type="Button" parent="hotbar_control/hotbar"]
+layout_mode = 2
+
+[node name="level_label" type="Label" parent="."]
+offset_left = 534.0
+offset_top = 22.0
+offset_right = 574.0
+offset_bottom = 45.0
+theme_override_fonts/font = ExtResource("11_cc1i8")
+text = "Level:"
+
+[node name="value" type="Label" parent="level_label"]
+layout_mode = 0
+offset_left = 38.0
+offset_top = -3.0
+offset_right = 78.0
+offset_bottom = 20.0
+text = "0"
+script = ExtResource("12_g8712")
+
+[node name="click_profile" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("14_vte8x")

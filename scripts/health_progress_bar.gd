@@ -1,11 +1,21 @@
 extends TextureProgressBar
 
 @export var player: Player
-# Called when the node enters the scene tree for the first time.
+
 func _ready() -> void:
-	pass # Replace with function body.
+	# If player is not set via export, try to find it
+	if not player:
+		player = get_tree().get_first_node_in_group("player")
+	
+	# Set up the progress bar
+	if player:
+		max_value = player.max_health
+		value = player.current_health
+		min_value = 0
+	else:
+		print("Health progress bar: Player not found!")
 
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
+func _process(_delta: float) -> void:
+	# Update the health bar to match player's current health
+	if player:
+		value = player.current_health

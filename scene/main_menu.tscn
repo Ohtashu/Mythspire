@@ -1,0 +1,175 @@
+[gd_scene load_steps=21 format=3 uid="uid://dfofqtd7gepqe"]
+
+[ext_resource type="Texture2D" uid="uid://ndg78du0dg13" path="res://GUI/main_menu/Gemini_Generated_Image_qx9ciwqx9ciwqx9c.png" id="1_dclss"]
+[ext_resource type="FontFile" uid="uid://ob526hfhuufw" path="res://fonts/DeadRevolverDisplay.ttf" id="2_hmxu4"]
+[ext_resource type="Texture2D" uid="uid://bw7cy8g2bfk3k" path="res://GUI/main_menu/ButtonDigital_Press.png" id="3_hmxu4"]
+[ext_resource type="Texture2D" uid="uid://bkp88oi6qppgk" path="res://GUI/main_menu/ButtonDigital_Pressed.png" id="3_ictww"]
+[ext_resource type="Texture2D" uid="uid://dp6cc8o70ifkh" path="res://GUI/main_menu/ButtonDigital_Highlighted.png" id="4_1o50l"]
+[ext_resource type="Script" uid="uid://7megopsi7opo" path="res://scripts/start_game.gd" id="5_cht4j"]
+[ext_resource type="FontFile" uid="uid://dghwpyh5twng5" path="res://fonts/DeadRevolverGame.ttf" id="6_os2d6"]
+[ext_resource type="Script" uid="uid://ma1o85k5s0re" path="res://scripts/options.gd" id="7_v0h3m"]
+[ext_resource type="Script" uid="uid://dv4vlhe2or7gt" path="res://scripts/quit.gd" id="8_sra1m"]
+[ext_resource type="Texture2D" uid="uid://cn3ehcapiorqb" path="res://GUI/main_menu/B9F62D70-9F97-45A4-80FD-17E2F5424A72-removebg-preview.png" id="9_unisd"]
+[ext_resource type="AudioStream" uid="uid://m2shb1xragr" path="res://audio/main_menu/02 - Title Theme.ogg" id="10_bgmusic"]
+[ext_resource type="AudioStream" uid="uid://ds8wbahycarl7" path="res://audio/main_menu/pop_3.wav" id="11_1o50l"]
+[ext_resource type="AudioStream" uid="uid://ca8erkabeewxq" path="res://audio/main_menu/click_double_off.wav" id="12_cht4j"]
+[ext_resource type="Script" uid="uid://crdaiimh35y40" path="res://scripts/main_menu.gd" id="13_mainmenu"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1o50l"]
+atlas = ExtResource("3_ictww")
+region = Rect2(8.223388, 2.979477, 35.61725, 10.590617)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ictww"]
+atlas = ExtResource("3_hmxu4")
+region = Rect2(166.14876, 1.1378384, 31.645767, 15.570726)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cht4j"]
+atlas = ExtResource("3_ictww")
+region = Rect2(7.9712305, 3.092257, 35.93245, 10.793034)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hmxu4"]
+atlas = ExtResource("4_1o50l")
+region = Rect2(8.188332, 2.9747524, 35.736996, 11.066286)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_os2d6"]
+atlas = ExtResource("3_ictww")
+region = Rect2(8.055887, 3.0375729, 35.93744, 10.807705)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dclss"]
+atlas = ExtResource("4_1o50l")
+region = Rect2(8.233015, 2.9587908, 35.533943, 10.96476)
+
+[node name="main_menu" type="Control"]
+clip_contents = true
+layout_direction = 4
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("13_mainmenu")
+
+[node name="GeminiGeneratedImageQx9Ciwqx9Ciwqx9c" type="Sprite2D" parent="."]
+position = Vector2(319.99997, 180)
+scale = Vector2(0.2531645, 0.21226417)
+texture = ExtResource("1_dclss")
+
+[node name="title" type="Label" parent="."]
+layout_mode = 0
+offset_left = 29.0
+offset_top = 81.0
+offset_right = 169.0
+offset_bottom = 99.0
+theme_override_colors/font_color = Color(1, 0.84313726, 0, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 4
+theme_override_constants/shadow_offset_y = 4
+theme_override_constants/outline_size = 4
+theme_override_fonts/font = ExtResource("2_hmxu4")
+theme_override_font_sizes/font_size = 25
+text = "mythspire"
+
+[node name="mainmenu_label" type="Label" parent="."]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 108.0
+offset_right = 296.0
+offset_bottom = 144.0
+theme_override_colors/font_color = Color(0.83137256, 0.6862745, 0.21568628, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 4
+theme_override_constants/shadow_offset_y = 4
+theme_override_constants/outline_size = 4
+theme_override_fonts/font = ExtResource("2_hmxu4")
+theme_override_font_sizes/font_size = 52
+text = "Main menu"
+
+[node name="start_game" type="TextureButton" parent="."]
+layout_mode = 0
+offset_left = 17.0
+offset_top = 164.0
+offset_right = 162.0
+offset_bottom = 203.0
+action_mode = 0
+texture_pressed = SubResource("AtlasTexture_1o50l")
+texture_hover = SubResource("AtlasTexture_ictww")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("5_cht4j")
+
+[node name="Label" type="Label" parent="start_game"]
+layout_mode = 0
+offset_left = 14.0
+offset_top = 10.0
+offset_right = 128.0
+offset_bottom = 33.0
+theme_override_colors/font_color = Color(1, 0.972549, 0.90588236, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("6_os2d6")
+text = "start game"
+
+[node name="options" type="TextureButton" parent="."]
+layout_mode = 0
+offset_left = 17.0
+offset_top = 216.0
+offset_right = 150.0
+offset_bottom = 257.0
+texture_pressed = SubResource("AtlasTexture_cht4j")
+texture_hover = SubResource("AtlasTexture_hmxu4")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("7_v0h3m")
+
+[node name="Label" type="Label" parent="options"]
+layout_mode = 0
+offset_left = 14.0
+offset_top = 10.0
+offset_right = 128.0
+offset_bottom = 33.0
+theme_override_colors/font_color = Color(1, 0.972549, 0.90588236, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("6_os2d6")
+text = "options"
+
+[node name="quit" type="TextureButton" parent="."]
+layout_mode = 0
+offset_left = 17.0
+offset_top = 258.0
+offset_right = 150.0
+offset_bottom = 299.0
+texture_pressed = SubResource("AtlasTexture_os2d6")
+texture_hover = SubResource("AtlasTexture_dclss")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("8_sra1m")
+
+[node name="Label" type="Label" parent="quit"]
+layout_mode = 0
+offset_left = 14.0
+offset_top = 10.0
+offset_right = 128.0
+offset_bottom = 33.0
+theme_override_colors/font_color = Color(1, 0.972549, 0.90588236, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("6_os2d6")
+text = "quit"
+
+[node name="B9f62d709f9745a480fd17e2f5424a72RemovebgPreview" type="Sprite2D" parent="."]
+position = Vector2(461, 219.00002)
+scale = Vector2(0.50980395, 0.52205884)
+texture = ExtResource("9_unisd")
+
+[node name="menu_background_music" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("10_bgmusic")
+
+[node name="menu_hover" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("11_1o50l")
+
+[node name="button_click" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("12_cht4j")

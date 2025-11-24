@@ -1,0 +1,76 @@
+[gd_scene load_steps=11 format=3 uid="uid://dkrv8508y8j0y"]
+
+[ext_resource type="Texture2D" uid="uid://crsekws7aq3d" path="res://assets/Player/Sprites/idle.png" id="1_7idye"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_inoei"]
+atlas = ExtResource("1_7idye")
+region = Rect2(0, 0, 48, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f77cx"]
+atlas = ExtResource("1_7idye")
+region = Rect2(48, 0, 48, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t5fqd"]
+atlas = ExtResource("1_7idye")
+region = Rect2(96, 0, 48, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lyeb3"]
+atlas = ExtResource("1_7idye")
+region = Rect2(144, 0, 48, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ckcr0"]
+atlas = ExtResource("1_7idye")
+region = Rect2(192, 0, 48, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qp84u"]
+atlas = ExtResource("1_7idye")
+region = Rect2(240, 0, 48, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_or6w0"]
+atlas = ExtResource("1_7idye")
+region = Rect2(288, 0, 48, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_snu13"]
+atlas = ExtResource("1_7idye")
+region = Rect2(336, 0, 48, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_yul6f"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_inoei")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f77cx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t5fqd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lyeb3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ckcr0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qp84u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_or6w0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_snu13")
+}],
+"loop": true,
+"name": &"character_preview",
+"speed": 5.0
+}]
+
+[node name="character_preview" type="Node2D"]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -17)
+scale = Vector2(1.5, 1.5)
+sprite_frames = SubResource("SpriteFrames_yul6f")
+animation = &"character_preview"
+autoplay = "character_preview"

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://m2shb1xragr"
+path="res://.godot/imported/02 - Title Theme.ogg-61d6ddbfe4c7541d29088425da9d43ed.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/main_menu/02 - Title Theme.ogg"
+dest_files=["res://.godot/imported/02 - Title Theme.ogg-61d6ddbfe4c7541d29088425da9d43ed.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

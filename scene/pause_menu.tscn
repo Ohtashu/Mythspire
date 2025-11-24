@@ -1,0 +1,132 @@
+[gd_scene load_steps=11 format=3 uid="uid://cnj868krns2aj"]
+
+[ext_resource type="Theme" uid="uid://b8rqspmlodefr" path="res://Resources/panel_theme.tres" id="1_71u2q"]
+[ext_resource type="FontFile" uid="uid://ob526hfhuufw" path="res://fonts/DeadRevolverDisplay.ttf" id="2_xugnn"]
+[ext_resource type="Texture2D" uid="uid://bemxm4g0ihpe7" path="res://assets/buttons/ButtonE_Unpressed.png" id="3_03dpp"]
+[ext_resource type="Texture2D" uid="uid://ov2sopo78txa" path="res://assets/buttons/ButtonE_Pressed.png" id="4_uc7mi"]
+[ext_resource type="Texture2D" uid="uid://bjj0jscjildw" path="res://assets/buttons/ButtonE_Highlighted.png" id="5_u32wm"]
+[ext_resource type="Script" uid="uid://gep6rrxk5xrj" path="res://scripts/continue.gd" id="6_f4yx1"]
+[ext_resource type="FontFile" uid="uid://dghwpyh5twng5" path="res://fonts/DeadRevolverGame.ttf" id="7_emx8u"]
+[ext_resource type="Script" uid="uid://qujvi62k58d2" path="res://scripts/menu.gd" id="8_h5blq"]
+[ext_resource type="Script" uid="uid://dv4vlhe2or7gt" path="res://scripts/quit.gd" id="9_fb88f"]
+[ext_resource type="Script" uid="uid://di0527fprcr5t" path="res://scripts/pause_menu.gd" id="10_pause_menu"]
+
+[node name="pause_menu" type="Control"]
+z_index = 100
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("10_pause_menu")
+
+[node name="BackgroundOverlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.5)
+
+[node name="ContentContainer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -109.0
+offset_top = -85.5
+offset_right = 109.0
+offset_bottom = 85.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="pause_panel" type="Panel" parent="ContentContainer"]
+layout_mode = 0
+offset_right = 218.0
+offset_bottom = 171.0
+theme = ExtResource("1_71u2q")
+
+[node name="Label" type="Label" parent="ContentContainer/pause_panel"]
+layout_mode = 0
+offset_left = 60.0
+offset_top = -10.0
+offset_right = 164.0
+offset_bottom = 13.0
+theme_override_constants/line_spacing = 7
+theme_override_constants/shadow_offset_x = 6
+theme_override_constants/shadow_offset_y = 5
+theme_override_constants/outline_size = 4
+theme_override_fonts/font = ExtResource("2_xugnn")
+theme_override_font_sizes/font_size = 32
+text = "Pause"
+
+[node name="continue" type="TextureButton" parent="ContentContainer/pause_panel"]
+layout_mode = 0
+offset_left = 51.0
+offset_top = 33.0
+offset_right = 173.0
+offset_bottom = 69.0
+texture_normal = ExtResource("3_03dpp")
+texture_pressed = ExtResource("4_uc7mi")
+texture_hover = ExtResource("5_u32wm")
+stretch_mode = 0
+script = ExtResource("6_f4yx1")
+
+[node name="Label" type="Label" parent="ContentContainer/pause_panel/continue"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 9.0
+offset_right = 116.0
+offset_bottom = 32.0
+theme_override_fonts/font = ExtResource("7_emx8u")
+theme_override_font_sizes/font_size = 14
+text = "continue"
+
+[node name="main_menu" type="TextureButton" parent="ContentContainer/pause_panel"]
+layout_mode = 0
+offset_left = 51.0
+offset_top = 74.0
+offset_right = 173.0
+offset_bottom = 110.0
+texture_normal = ExtResource("3_03dpp")
+texture_pressed = ExtResource("4_uc7mi")
+texture_hover = ExtResource("5_u32wm")
+stretch_mode = 0
+script = ExtResource("8_h5blq")
+
+[node name="Label" type="Label" parent="ContentContainer/pause_panel/main_menu"]
+layout_mode = 0
+offset_left = 11.0
+offset_top = 9.0
+offset_right = 113.0
+offset_bottom = 32.0
+theme_override_fonts/font = ExtResource("7_emx8u")
+theme_override_font_sizes/font_size = 15
+text = "Main  menu"
+
+[node name="quit" type="TextureButton" parent="ContentContainer/pause_panel"]
+layout_mode = 0
+offset_left = 51.0
+offset_top = 119.0
+offset_right = 173.0
+offset_bottom = 155.0
+texture_normal = ExtResource("3_03dpp")
+texture_pressed = ExtResource("4_uc7mi")
+texture_hover = ExtResource("5_u32wm")
+stretch_mode = 0
+script = ExtResource("9_fb88f")
+
+[node name="Label" type="Label" parent="ContentContainer/pause_panel/quit"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 10.0
+offset_right = 82.0
+offset_bottom = 25.0
+theme_override_fonts/font = ExtResource("7_emx8u")
+theme_override_font_sizes/font_size = 14
+text = "quit"

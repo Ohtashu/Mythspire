@@ -1,0 +1,14 @@
+[gd_resource type="Theme" load_steps=3 format=3 uid="uid://b8rqspmlodefr"]
+
+[ext_resource type="Texture2D" uid="uid://qkcb6ge1s7t" path="res://Resources/GridPanel.png" id="1_0ex78"]
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_htoct"]
+texture = ExtResource("1_0ex78")
+texture_margin_left = 14.581374
+texture_margin_top = 13.336926
+texture_margin_right = 14.236812
+texture_margin_bottom = 13.526376
+region_rect = Rect2(0.12682343, -0.019888401, 15.381611, 16.012003)
+
+[resource]
+Panel/styles/panel = SubResource("StyleBoxTexture_htoct")

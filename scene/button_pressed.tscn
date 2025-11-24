@@ -1,0 +1,45 @@
+[gd_scene load_steps=7 format=3 uid="uid://7t5xom4y4re3"]
+
+[ext_resource type="Texture2D" uid="uid://bw7cy8g2bfk3k" path="res://GUI/main_menu/ButtonDigital_Press.png" id="1_c23x7"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sypwu"]
+atlas = ExtResource("1_c23x7")
+region = Rect2(0, 0, 52, 18)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ivt0x"]
+atlas = ExtResource("1_c23x7")
+region = Rect2(52, 0, 52, 18)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_h6ks4"]
+atlas = ExtResource("1_c23x7")
+region = Rect2(104, 0, 52, 18)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_77wrm"]
+atlas = ExtResource("1_c23x7")
+region = Rect2(156, 0, 52, 18)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_f55oh"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sypwu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ivt0x")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_h6ks4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_77wrm")
+}],
+"loop": true,
+"name": &"default",
+"speed": 10.0
+}]
+
+[node name="button_animation" type="Node2D"]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_f55oh")
+frame_progress = 0.058414645
