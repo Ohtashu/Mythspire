@@ -107,5 +107,6 @@ func _on_body_entered(body: Node2D) -> void:
 	
 	# Execute: Print and call GameManager
 	print("Switching to: ", target_scene_path)
-	print("SceneTrigger: Calling GameManager.change_scene(", target_scene_path, ", ", target_spawn_tag, ", ", player_hp, ")")
-	GameManager.change_scene(target_scene_path, target_spawn_tag, player_hp)
+	print("SceneTrigger: Calling GameManager.load_level(", target_scene_path, ", ", target_spawn_tag, ")")
+	# Task 3: Use load_level to swap maps
+	GameManager.load_level(target_scene_path, target_spawn_tag)

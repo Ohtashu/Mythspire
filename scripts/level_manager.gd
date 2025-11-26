@@ -15,6 +15,22 @@ func _ready() -> void:
 	print("LevelManager: Initializing Y-sorting configuration...")
 	setup_y_sorting()
 	print("LevelManager: Y-sorting configuration complete!")
+	
+	# Task 1: Get references and pass to GameManager
+	var player = get_node_or_null("Player")
+	var level_container = get_node_or_null("LevelContainer")
+	
+	if player and level_container:
+		if GameManager:
+			GameManager.setup_systems(player, level_container)
+			print("LevelManager: Passed Player and LevelContainer references to GameManager")
+		else:
+			push_error("LevelManager: GameManager autoload not found!")
+	else:
+		if not player:
+			push_error("LevelManager: Player node not found! Expected path: $Player")
+		if not level_container:
+			push_error("LevelManager: LevelContainer node not found! Expected path: $LevelContainer")
 
 func setup_y_sorting() -> void:
 	# Ensure this node is a Node2D (YSort extends Node2D)
@@ -39,11 +55,92 @@ func setup_y_sorting() -> void:
 	# Configure Enemies
 	setup_enemies()
 	
-	# Configure TileMaps
+	# Configure TileMaps (searches from self, which includes LevelContainer and its children)
 	setup_tilemaps()
 	
 	# Configure other sortable objects (torches, candles, etc.)
 	setup_environment_objects()
+
+func setup_y_sorting_for_map(map_node: Node) -> void:
+	"""Setup Y-sorting for a specific map node (called when maps are swapped)"""
+	if not map_node:
+		push_error("LevelManager: Cannot setup Y-sorting for null map node!")
+		return
+	
+	print("LevelManager: Setting up Y-sorting for map: ", map_node.name)
+	
+	# Configure TileMaps in the new map
+	var tilemaps: Array[Node] = []
+	find_tilemap_layers_recursive(map_node, tilemaps)
+	
+	print("LevelManager: Found ", tilemaps.size(), " TileMapLayer nodes in new map")
+	
+	for tilemap in tilemaps:
+		if tilemap is TileMapLayer:
+			var layer_name = tilemap.name.to_lower()
+			
+			# Enable Y-sorting on TileMapLayers that need it (walls, structures, decorations)
+			if "wall" in layer_name or "structure" in layer_name or "decoration" in layer_name:
+				tilemap.y_sort_enabled = true
+				tilemap.z_index = wall_z_index
+				print("LevelManager: Configured TileMapLayer (Y-sort enabled): ", tilemap.name)
+			elif "ground" in layer_name or "floor" in layer_name:
+				# Floor layers don't need Y-sorting, but set z_index to be below everything
+				tilemap.y_sort_enabled = false
+				tilemap.z_index = floor_z_index
+				print("LevelManager: Configured TileMapLayer (floor): ", tilemap.name, " z_index: ", floor_z_index)
+			else:
+				# Other layers - enable Y-sorting by default
+				tilemap.y_sort_enabled = true
+				tilemap.z_index = structure_z_index
+				print("LevelManager: Configured TileMapLayer (default): ", tilemap.name)
+	
+	# Configure environment objects in the new map
+	var env_objects: Array[Node] = []
+	find_environment_objects_recursive(map_node, env_objects)
+	
+	print("LevelManager: Found ", env_objects.size(), " environment objects in new map")
+	
+	for obj in env_objects:
+		if obj is Node2D:
+			var obj_name = obj.name.to_lower()
+			if "torch" in obj_name or "candle" in obj_name or "pedestal" in obj_name:
+				obj.y_sort_enabled = true
+				obj.z_index = structure_z_index
+				print("LevelManager: Configured environment object: ", obj.name)
+	
+	# Configure enemies in the new map
+	var enemies: Array[Node] = []
+	enemies.append_array(map_node.get_tree().get_nodes_in_group("enemy"))
+	
+	# Also find enemies that are children of the map
+	for child in map_node.get_children():
+		if child is CharacterBody2D and child.is_in_group("enemy"):
+			if not child in enemies:
+				enemies.append(child)
+	
+	# Recursively find enemies in the map
+	find_enemies_recursive(map_node, enemies)
+	
+	print("LevelManager: Found ", enemies.size(), " enemies in new map")
+	
+	for enemy in enemies:
+		if enemy is CharacterBody2D:
+			enemy.y_sort_enabled = true
+			enemy.z_index = character_z_index
+			configure_node_children(enemy, false)
+			print("LevelManager: Configured enemy: ", enemy.name)
+	
+	print("LevelManager: Y-sorting setup complete for map: ", map_node.name)
+
+func find_enemies_recursive(node: Node, result: Array) -> void:
+	"""Recursively find all enemies in a node tree"""
+	if node is CharacterBody2D and node.is_in_group("enemy"):
+		if not node in result:
+			result.append(node)
+	
+	for child in node.get_children():
+		find_enemies_recursive(child, result)
 
 func setup_player() -> void:
 	var player = get_tree().get_first_node_in_group("player")

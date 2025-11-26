@@ -1,8 +1,5 @@
 extends Node2D
 
-@onready var spawners = [$Spawner1, $Spawner2, $Spawner3, $Spawner4, $Spawner5, $"Spawner 6"]
-@onready var timer: Timer = $Timer
-
 # Array of enemy scenes to randomly choose from
 @export var enemy_scenes: Array[PackedScene] = [
 	preload("res://scene/skeleton.tscn"),
@@ -17,54 +14,123 @@ extends Node2D
 @export var respawn_time: float = 30.0
 
 var alive_count = 0
+var spawn_points: Array[Vector2] = []  # Auto-detected spawn points
+var player_ref: Node = null  # Player reference from GameManager
+var dungeon_map: Node = null  # Parent node (the dungeon map)
+var timer: Timer = null  # Timer (either from scene or created programmatically)
 
 func _ready() -> void:
-	timer.wait_time = respawn_time
-	timer.one_shot = true
-	timer.timeout.connect(_on_timer_timeout)
+	# Get the parent (dungeon map) - this is where enemies will be spawned
+	dungeon_map = get_parent()
+	if not dungeon_map:
+		push_error("EnemySpawner: Could not find parent node (dungeon map)!")
+		return
+	
+	print("EnemySpawner: Parent dungeon map: ", dungeon_map.name)
+	
+	# Task 2: Auto-detect spawn points (Marker2D children of EnemySpawner OR siblings)
+	detect_spawn_points()
+	
+	# Setup Timer - check if it exists in scene, otherwise create it
+	timer = get_node_or_null("Timer")
+	if not timer:
+		timer = Timer.new()
+		timer.name = "Timer"
+		timer.wait_time = respawn_time
+		timer.one_shot = true
+		timer.timeout.connect(_on_timer_timeout)
+		add_child(timer)
+		print("EnemySpawner: Timer created programmatically")
+	else:
+		timer.wait_time = respawn_time
+		timer.one_shot = true
+		if not timer.timeout.is_connected(_on_timer_timeout):
+			timer.timeout.connect(_on_timer_timeout)
+		print("EnemySpawner: Using existing Timer from scene")
+	
+	# Task 1: Get player reference from GameManager (deferred to handle timing)
+	call_deferred("_setup_player_reference")
 	
 	# Initial spawn - use call_deferred to ensure everything is ready
 	call_deferred("spawn_wave")
 
+func _setup_player_reference() -> void:
+	"""Setup player reference from GameManager (called deferred to handle timing)"""
+	if GameManager and GameManager.player_ref:
+		player_ref = GameManager.player_ref
+		print("EnemySpawner: Player reference obtained from GameManager: ", player_ref.name)
+	else:
+		# This is a warning, not an error, since enemies find the player themselves
+		push_warning("EnemySpawner: Player not found in GameManager yet. Enemies will find player themselves.")
+
+func detect_spawn_points() -> void:
+	"""Auto-detect spawn points by finding Marker2D children of EnemySpawner OR siblings in dungeon map"""
+	spawn_points.clear()
+	
+	# Method 1: Look for Marker2D children of EnemySpawner (Spawner1, Spawner2, etc.)
+	for child in get_children():
+		if child is Marker2D:
+			spawn_points.append(child.global_position)
+			print("EnemySpawner: Found spawn point (child): ", child.name, " at position: ", child.global_position)
+	
+	# Method 2: If no children found, look for Marker2D siblings in dungeon map (excluding Entrance/Exit)
+	if spawn_points.is_empty() and dungeon_map:
+		for child in dungeon_map.get_children():
+			if child is Marker2D and child != self:
+				var marker_name = child.name.to_lower()
+				# Exclude entrance and exit markers (spawn points for player, not enemies)
+				if "entrance" not in marker_name and "exit" not in marker_name:
+					spawn_points.append(child.global_position)
+					print("EnemySpawner: Found spawn point (sibling): ", child.name, " at position: ", child.global_position)
+	
+	# Fallback: If no markers found, use spawner's own position
+	if spawn_points.is_empty():
+		spawn_points.append(global_position)
+		print("EnemySpawner: No spawn points found! Using spawner's own position as fallback: ", global_position)
+	else:
+		print("EnemySpawner: Detected ", spawn_points.size(), " spawn points")
+
 func spawn_wave() -> void:
-	# Get the Game root node (parent of EnemySpawner) for proper Y-sorting
-	var game_root = get_parent()
-	if not game_root:
-		game_root = get_tree().current_scene
-	
-	if not game_root:
-		print("ERROR: EnemySpawner could not find Game root node!")
+	# Validate dungeon map
+	if not dungeon_map:
+		push_error("EnemySpawner: Cannot spawn - dungeon_map is null!")
 		return
 	
-	# Check if spawners are ready
-	if not spawners or spawners.size() == 0:
-		print("ERROR: EnemySpawner spawners not found! Spawners: ", spawners)
+	# Check if spawn points are available
+	if spawn_points.is_empty():
+		push_error("EnemySpawner: No spawn points available!")
 		return
 	
-	for spawner in spawners:
-		if not spawner:
-			continue
+	# Validate player reference (for debugging, enemies find player themselves)
+	if not player_ref:
+		push_warning("EnemySpawner: Player reference is null, but continuing spawn (enemies will find player themselves)")
+	
+	# Check if enemy scenes are loaded
+	if enemy_scenes.is_empty():
+		push_error("EnemySpawner: No enemy scenes loaded!")
+		return
+	
+	# Spawn one enemy per spawn point (or a subset if you want fewer enemies)
+	for spawn_point in spawn_points:
 		# Randomly choose an enemy type with weighted probability
-		if enemy_scenes.is_empty():
-			print("ERROR: No enemy scenes loaded!")
-			return
-		
-		# Weighted random selection: slimes spawn more often than skeletons
 		var enemy_scene = get_weighted_random_enemy()
 		if not enemy_scene:
-			print("ERROR: Enemy scene is null!")
+			push_error("EnemySpawner: Enemy scene is null!")
 			continue
+		
 		var enemy = enemy_scene.instantiate()
 		if not enemy:
-			print("ERROR: Failed to instantiate enemy!")
+			push_error("EnemySpawner: Failed to instantiate enemy!")
 			continue
+		
 		# Set position before adding to tree
-		enemy.position = spawner.global_position
-		# Add enemy to Game root for proper Y-sorting with player
-		game_root.add_child(enemy)
+		enemy.global_position = spawn_point
+		
+		# Task 3: Add enemy as child of parent (dungeon map), not the spawner
+		dungeon_map.add_child(enemy)
 		enemy.tree_exited.connect(_on_enemy_died)
 		alive_count += 1
-		print("Spawned enemy at position: ", enemy.position, " alive_count: ", alive_count)
+		print("EnemySpawner: Spawned enemy at position: ", enemy.global_position, " alive_count: ", alive_count)
 
 func _on_enemy_died() -> void:
 	# Check if we're still in the scene tree (scene might be changing)
