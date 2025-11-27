@@ -137,4 +137,5 @@ func _on_area_entered(area: Area2D) -> void:
 			var damage_to_deal = skeleton.SKELETON_DAMAGE
 			if skeleton.is_defending:
 				damage_to_deal = skeleton.SKELETON_DAMAGE_DEFENDING
-			player.take_damage(damage_to_deal)
+			# Task 2: Pass skeleton's position for knockback
+			player.take_damage(damage_to_deal, skeleton.global_position)

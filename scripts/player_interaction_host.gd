@@ -83,4 +83,4 @@ func _on_area_entered(area: Area2D) -> void:
 		
 		# Only deal damage if enemy is not defending
 		if not is_defending and enemy.has_method("take_damage"):
-			enemy.take_damage(player.damage)
+			enemy.take_damage(player.damage, player.global_position)

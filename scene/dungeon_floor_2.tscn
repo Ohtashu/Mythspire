@@ -4328,27 +4328,27 @@ position = Vector2(20, 296)
 [node name="EnemySpawner" parent="." instance=ExtResource("4_t76ed")]
 
 [node name="Spawner1" type="Marker2D" parent="EnemySpawner"]
-position = Vector2(332, 355)
+position = Vector2(425, 420)
 
 [node name="Spawner2" type="Marker2D" parent="EnemySpawner"]
-position = Vector2(590, 241)
+position = Vector2(652, 230)
 
 [node name="Spawner3" type="Marker2D" parent="EnemySpawner"]
-position = Vector2(444, 199)
+position = Vector2(519, 171)
 
 [node name="Spawner4" type="Marker2D" parent="EnemySpawner"]
-position = Vector2(300, 186)
+position = Vector2(296, 316)
 
 [node name="Spawner5" type="Marker2D" parent="EnemySpawner"]
 position = Vector2(453, 60)
 
 [node name="Spawner6" type="Marker2D" parent="EnemySpawner"]
-position = Vector2(312, 62)
+position = Vector2(308, 163)
 
 [node name="Spawner7" type="Marker2D" parent="EnemySpawner"]
-position = Vector2(184, 257)
+position = Vector2(119, 215)
 
 [node name="Spawner8" type="Marker2D" parent="EnemySpawner"]
-position = Vector2(162, 362)
+position = Vector2(126, 412)
 
 [node name="Timer" type="Timer" parent="EnemySpawner"]

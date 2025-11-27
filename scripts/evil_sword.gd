@@ -7,7 +7,7 @@ const DamageIndicator = preload("res://scene/DamageIndicator.tscn")
 @onready var sfx_attack: AudioStreamPlayer2D = $sfx_evil_sword_attack
 @onready var damage_spawn_point: Marker2D = get_node_or_null("DamageSpawnPoint")
 
-enum State {IDLE, ORBIT, DASH, HURT}
+enum State {IDLE, NOTICE, ORBIT, DASH, HURT}
 
 var player: CharacterBody2D
 var raycast: RayCast2D
@@ -40,14 +40,14 @@ const KNOCKBACK_DURATION = 0.2
 var is_dying: bool = false  # Flag to prevent normal behavior during death animation
 var death_animation_complete: bool = false  # Flag to track if death animation completed
 var is_playing_damaged: bool = false  # Flag to track if damaged animation is playing
-var is_stunned: bool = false  # Flag to track if evil sword is stunned
-var stun_timer: float = 0.0  # Timer for stun duration
-@export var hit_stun_duration: float = 0.15  # Duration of stun in seconds (0.15s = 150ms micro-stun)
+# Reaction Time system (replaces Grace Period)
+var reaction_timer: float = 0.0
+@export var reaction_time: float = 0.75  # Time to notice player before chasing (0.5-1.0 seconds)
 
-# Grace period system
-var can_attack_player: bool = false  # Can only attack player after grace period or if attacked
-var grace_period_timer: Timer
-const GRACE_PERIOD_DURATION: float = 4.0  # 4 seconds grace period
+# Knockback system (replaces Stun)
+var knockback_velocity: Vector2 = Vector2.ZERO
+@export var knockback_force: float = 150.0  # Force of knockback
+@export var knockback_friction: float = 8.0  # Friction to slow down knockback
 
 # Health system - Medium tier (between Slime 30 and Skeleton 25)
 var max_health: int = 27
@@ -80,15 +80,10 @@ func _ready() -> void:
 	# Store original Y position for bobbing
 	original_y = global_position.y
 	
-	# Setup grace period timer
-	grace_period_timer = Timer.new()
-	grace_period_timer.wait_time = GRACE_PERIOD_DURATION
-	grace_period_timer.one_shot = true
-	grace_period_timer.timeout.connect(_on_grace_period_timeout)
-	add_child(grace_period_timer)
-	
-	# Start grace period on spawn
-	start_grace_period()
+	# Task 2: Fix physics dragging - ensure collision mask ignores player (layer 4) but keeps walls (layer 1)
+	# Player is on layer 4, walls are on layer 1
+	set_collision_mask_value(1, true)   # Collide with walls (layer 1)
+	set_collision_mask_value(4, false)  # Don't collide with player (layer 4)
 
 func _physics_process(delta: float) -> void:
 	# Skip normal behavior if dying
@@ -100,17 +95,20 @@ func _physics_process(delta: float) -> void:
 	if not player:
 		return
 
-	# PRIORITY: HURT state takes priority over everything
-	if is_stunned or current_state == State.HURT:
-		handle_hurt(delta)
-		move_and_slide()
-		return
-
-	if is_knockback:
-		knockback_timer -= delta
-		if knockback_timer <= 0:
-			is_knockback = false
-			change_state(State.ORBIT)
+	# Task 2: Apply knockback friction (replaces stun)
+	# Apply friction to velocity so enemy slides to a stop smoothly
+	if knockback_velocity.length() > 0.1:
+		# Apply friction to slow down knockback velocity
+		var friction_factor = 1.0 - (knockback_friction * delta)
+		friction_factor = max(0.0, friction_factor)
+		knockback_velocity *= friction_factor
+		# Apply friction to main velocity as well (lerp towards zero)
+		velocity = velocity.lerp(Vector2.ZERO, knockback_friction * delta)
+		# Add remaining knockback to velocity
+		velocity += knockback_velocity * delta
+		# Clear very small knockback
+		if knockback_velocity.length() < 0.1:
+			knockback_velocity = Vector2.ZERO
 	
 	var distance_to_player = global_position.distance_to(player.global_position)
 	var can_see_player = check_line_of_sight()
@@ -118,16 +116,18 @@ func _physics_process(delta: float) -> void:
 	# Update bobbing offset (sine wave)
 	bobbing_offset += delta * BOBBING_SPEED
 	
-	# State machine (only if not stunned/HURT)
+	# State machine
 	match current_state:
 		State.IDLE:
 			handle_idle(delta, distance_to_player, can_see_player)
+		State.NOTICE:
+			handle_notice(delta, distance_to_player, can_see_player)
 		State.ORBIT:
 			handle_orbit(delta, distance_to_player, can_see_player)
 		State.DASH:
 			handle_dash(delta)
 		State.HURT:
-			handle_hurt(delta)  # Should not reach here due to priority check above
+			handle_hurt(delta)
 
 	# Bug 2 Fix: Apply separation force AFTER state handlers (so it doesn't get overridden)
 	# This prevents enemies from stacking on top of each other
@@ -159,10 +159,21 @@ func _physics_process(delta: float) -> void:
 	# Move and handle collisions
 	move_and_slide()
 	
-	# Apply bobbing motion for ORBIT and IDLE states (floating effect)
+	# Task 1: Apply bobbing motion smoothly (prevents teleporting)
+	# Use a smooth lerp approach instead of directly setting position
 	if current_state == State.ORBIT or current_state == State.IDLE:
-		var bobbing_y = sin(bobbing_offset) * BOBBING_AMPLITUDE
-		global_position.y = original_y + bobbing_y
+		# Calculate target bobbing offset
+		var target_bobbing_y = sin(bobbing_offset) * BOBBING_AMPLITUDE
+		var target_y = original_y + target_bobbing_y
+		
+		# Smoothly lerp towards target Y position (prevents snapping)
+		var current_y = global_position.y
+		var bobbing_speed = BOBBING_SPEED * 5.0  # Speed multiplier for smooth movement
+		var new_y = lerp(current_y, target_y, bobbing_speed * delta)
+		global_position.y = new_y
+	else:
+		# When not bobbing, update original_y to current position
+		original_y = global_position.y
 
 func check_line_of_sight() -> bool:
 	if not raycast or not player:
@@ -176,9 +187,18 @@ func change_state(new_state: State) -> void:
 	match new_state:
 		State.IDLE:
 			desired_velocity = Vector2.ZERO
+		State.NOTICE:
+			desired_velocity = Vector2.ZERO  # Stop and look at player
+			reaction_timer = 0.0
 		State.ORBIT:
 			dash_timer = 0.0  # Reset dash cooldown
-			orbit_angle = 0.0
+			# Task 1: Calculate orbit_angle based on current position to prevent teleporting
+			if player:
+				var to_player = global_position - player.global_position
+				# Calculate angle from current position (prevents snapping)
+				orbit_angle = atan2(to_player.y, to_player.x)
+			else:
+				orbit_angle = 0.0
 		State.DASH:
 			# Lock in target and direction
 			if player:
@@ -214,23 +234,39 @@ func apply_separation_force() -> void:
 		desired_velocity += separation * get_physics_process_delta_time()
 
 func handle_idle(_delta: float, distance: float, can_see: bool) -> void:
-	"""IDLE: Stand still, transition to ORBIT if player detected"""
-	if not can_attack_player:
-		desired_velocity = Vector2.ZERO
-		return
-	
+	"""IDLE: Stand still, transition to NOTICE if player detected"""
 	desired_velocity = Vector2.ZERO
 	
-	# Transition to ORBIT if player is detected
+	# Task 2: Transition to NOTICE state when player is detected
 	if can_see and distance <= DETECTION_RANGE:
+		change_state(State.NOTICE)
+
+func handle_notice(delta: float, distance: float, can_see: bool) -> void:
+	"""NOTICE: Look at player, wait for reaction time before orbiting"""
+	desired_velocity = Vector2.ZERO  # Stop movement, look at player
+	
+	# Face the player
+	if player:
+		var direction_to_player = (player.global_position - global_position).normalized()
+		if direction_to_player.x < 0:
+			animated_sprite.flip_h = true
+		elif direction_to_player.x > 0:
+			animated_sprite.flip_h = false
+	
+	# Check if player left range
+	if not can_see or distance > DETECTION_RANGE:
+		change_state(State.IDLE)
+		return
+	
+	# Update reaction timer
+	reaction_timer += delta
+	
+	# If reaction time passed, start orbiting
+	if reaction_timer >= reaction_time:
 		change_state(State.ORBIT)
 
 func handle_orbit(delta: float, _distance: float, can_see: bool) -> void:
 	"""ORBIT: Float around player at medium distance, encircle them"""
-	if not can_attack_player:
-		velocity = Vector2.ZERO
-		return
-	
 	if not can_see:
 		change_state(State.IDLE)
 		return
@@ -280,26 +316,20 @@ func handle_dash(delta: float) -> void:
 	
 	# Don't stop on collision - fly through (handled by move_and_slide)
 
-func handle_hurt(delta: float) -> void:
-	"""HURT: Stunned state - no movement or AI"""
-	# Handle stun timer
-	if is_stunned:
-		stun_timer -= delta
-		if stun_timer <= 0:
-			is_stunned = false
-			stun_timer = 0.0
-			# Exit HURT state after stun - return to appropriate state
-			if player:
-				var distance_to_player = global_position.distance_to(player.global_position)
-				var can_see_player = check_line_of_sight()
-				if can_see_player and distance_to_player <= DETECTION_RANGE:
-					change_state(State.ORBIT)
-				else:
-					change_state(State.IDLE)
-			else:
-				change_state(State.IDLE)
-	
+func handle_hurt(_delta: float) -> void:
+	"""HURT: Brief animation state - quickly return to appropriate state"""
 	desired_velocity = Vector2.ZERO
+	
+	# Exit HURT state quickly - return to appropriate state based on player position
+	if player:
+		var distance_to_player = global_position.distance_to(player.global_position)
+		var can_see_player = check_line_of_sight()
+		if can_see_player and distance_to_player <= DETECTION_RANGE:
+			change_state(State.ORBIT)
+		else:
+			change_state(State.IDLE)
+	else:
+		change_state(State.IDLE)
 
 func take_knockback(direction: Vector2) -> void:
 	if is_dying:
@@ -314,8 +344,8 @@ func update_animation(_delta: float) -> void:
 	if is_dying:
 		return
 	
-	# Don't change animation if damaged animation is playing or stunned
-	if is_playing_damaged or is_stunned:
+	# Don't change animation if damaged animation is playing
+	if is_playing_damaged:
 		return
 	
 	if current_state == State.HURT:
@@ -331,6 +361,12 @@ func update_animation(_delta: float) -> void:
 		# Play walking animation while orbiting
 		if animated_sprite.animation != "sword_walking":
 			animated_sprite.play("sword_walking")
+		return
+	
+	if current_state == State.NOTICE:
+		# Play idle animation while noticing (looking at player)
+		if animated_sprite.animation != "sword_idle":
+			animated_sprite.play("sword_idle")
 		return
 
 	# IDLE state
@@ -363,12 +399,10 @@ func _on_animated_sprite_2d_animation_finished() -> void:
 		queue_free()
 		return
 	
-	# After damaged animation, wait for stun to finish (handled in _physics_process)
+	# After damaged animation, exit HURT state (knockback continues in _physics_process)
 	if animated_sprite.animation == "sword_damaged":
 		is_playing_damaged = false
-		# Reset animation speed to normal
-		animated_sprite.speed_scale = 1.0
-		# State will be changed from HURT to IDLE/CHASE after stun timer expires
+		# State will be changed from HURT to appropriate state
 		return
 	
 	# Animation finished handlers for specific states
@@ -376,16 +410,14 @@ func _on_animated_sprite_2d_animation_finished() -> void:
 		# Dash finished, return to orbit
 		change_state(State.ORBIT)
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: int, source_position: Vector2 = Vector2.ZERO) -> void:
 	# Don't take damage if already dying
 	if is_dying:
 		return
 	
-	# Cancel grace period if enemy takes damage (player attacked first)
-	if not can_attack_player:
-		can_attack_player = true
-		if grace_period_timer:
-			grace_period_timer.stop()
+	# Task 2: If in NOTICE state and taking damage, cancel reaction and immediately orbit
+	if current_state == State.NOTICE:
+		change_state(State.ORBIT)
 	
 	# Play damage sound
 	if sfx_get_hit:
@@ -408,26 +440,33 @@ func take_damage(amount: int) -> void:
 		# Task 3: Hit flash effect - flash white for 0.1 seconds
 		_trigger_hit_flash()
 		
+		# Task 2: Apply knockback (replaces stun)
+		# Calculate knockback direction and apply directly to velocity
+		if source_position != Vector2.ZERO:
+			var knockback_direction = (global_position - source_position).normalized()
+			knockback_velocity = knockback_direction * knockback_force
+			velocity = knockback_direction * knockback_force  # Direct velocity assignment
+		else:
+			# Fallback: knockback away from player if no source position
+			if player:
+				var knockback_direction = (global_position - player.global_position).normalized()
+				knockback_velocity = knockback_direction * knockback_force
+				velocity = knockback_direction * knockback_force  # Direct velocity assignment
+		
 		# Priority Interrupt: Cancel any current action
 		desired_velocity = Vector2.ZERO
-		velocity = Vector2.ZERO
-		
-		# Trigger stun state (HURT takes priority)
-		is_stunned = true
-		stun_timer = hit_stun_duration
-		change_state(State.HURT)
 		
 		# Play damaged animation immediately (interrupts any current animation)
+		change_state(State.HURT)
 		if not is_playing_damaged:
 			is_playing_damaged = true
 			# Ensure animation doesn't loop
 			if animated_sprite.sprite_frames:
 				animated_sprite.sprite_frames.set_animation_loop("sword_damaged", false)
-			# Speed up animation to match short stun duration
-			animated_sprite.speed_scale = 2.0  # Play animation 2x faster
+			animated_sprite.speed_scale = 1.0  # Normal speed for knockback
 			animated_sprite.play("sword_damaged")
 		
-		print("Evil Sword took ", amount, " damage. Health: ", current_health, "/", max_health, " [STUNNED]")
+		print("Evil Sword took ", amount, " damage. Health: ", current_health, "/", max_health, " [KNOCKBACK]")
 
 func _trigger_screen_shake(intensity: float, duration: float) -> void:
 	"""Trigger screen shake effect on the camera"""
@@ -478,29 +517,18 @@ func die() -> void:
 	# Play death animation
 	animated_sprite.play("sword_die")
 
-func start_grace_period() -> void:
-	"""Start the grace period where enemy ignores player unless attacked"""
-	can_attack_player = false
-	if grace_period_timer:
-		grace_period_timer.start()
-		print("Evil Sword: Grace period started (4 seconds)")
-
-func _on_grace_period_timeout() -> void:
-	"""Grace period ended, enemy can now attack player"""
-	can_attack_player = true
-	print("Evil Sword: Grace period ended, can now attack player")
 
 func _spawn_damage_indicator(amount: int) -> void:
 	"""Spawn a floating damage number indicator"""
 	var indicator = DamageIndicator.instantiate()
 	if indicator:
-		# Set position - use DamageSpawnPoint if it exists, otherwise use a position above the evil sword
+		# Task 3: Use DamageSpawnPoint if it exists, otherwise default to global_position
 		var spawn_position: Vector2
 		if damage_spawn_point:
 			spawn_position = damage_spawn_point.global_position
 		else:
-			# Fallback: spawn above the evil sword (offset by sprite height)
-			spawn_position = global_position + Vector2(0, -20)
+			# Default to global_position if DamageSpawnPoint node is missing
+			spawn_position = global_position
 		
 		# Add random offset to prevent overlapping
 		spawn_position += Vector2(randf_range(-10, 10), randf_range(-10, 10))
@@ -536,4 +564,5 @@ func deal_damage() -> void:
 	if distance_to_player <= ATTACK_RANGE * 2.0:  # Extended range for dash
 		# Deal damage to player
 		if player.has_method("take_damage"):
-			player.take_damage(EVIL_SWORD_DAMAGE)
+			# Task 2: Pass evil_sword's position for knockback
+			player.take_damage(EVIL_SWORD_DAMAGE, global_position)

@@ -9,7 +9,7 @@ const DamageIndicator = preload("res://scene/DamageIndicator.tscn")
 @onready var sfx_growl: AudioStreamPlayer2D = get_node_or_null("skeleton_growl")
 @onready var damage_spawn_point: Marker2D = get_node_or_null("DamageSpawnPoint")
 
-enum State {IDLE, CHASE, BLOCK, ATTACK, HURT}
+enum State {IDLE, NOTICE, CHASE, BLOCK, ATTACK, HURT}
 
 var player: CharacterBody2D
 var raycast: RayCast2D
@@ -38,16 +38,21 @@ var defend_timer: float = 0.0
 var is_dying: bool = false  # Flag to prevent normal behavior during death animation
 var death_animation_complete: bool = false  # Flag to track if death animation completed
 var is_playing_damaged: bool = false  # Flag to track if damaged animation is playing
-var is_stunned: bool = false  # Flag to track if skeleton is stunned
-var stun_timer: float = 0.0  # Timer for stun duration
-@export var hit_stun_duration: float = 0.15  # Duration of stun in seconds (0.15s = 150ms micro-stun)
 var growl_timer: float = 0.0
 const GROWL_INTERVAL: float = 10.0  # Play growl every 10 seconds
 
-# Grace period system
-var can_attack_player: bool = false  # Can only attack player after grace period or if attacked
-var grace_period_timer: Timer
-const GRACE_PERIOD_DURATION: float = 4.0  # 4 seconds grace period
+# Attack cooldown system
+var can_attack: bool = true  # Flag to prevent attack spam
+@export var attack_cooldown: float = 1.5  # Cooldown between attacks in seconds
+
+# Reaction Time system (replaces Grace Period)
+var reaction_timer: float = 0.0
+@export var reaction_time: float = 0.75  # Time to notice player before chasing (0.5-1.0 seconds)
+
+# Knockback system (replaces Stun)
+var knockback_velocity: Vector2 = Vector2.ZERO
+@export var knockback_force: float = 150.0  # Force of knockback
+@export var knockback_friction: float = 8.0  # Friction to slow down knockback
 
 # Health system
 var max_health: int = 25  # Reduced from 50 (was too high)
@@ -75,15 +80,8 @@ func _ready() -> void:
 	# Initialize health
 	current_health = max_health
 	
-	# Setup grace period timer
-	grace_period_timer = Timer.new()
-	grace_period_timer.wait_time = GRACE_PERIOD_DURATION
-	grace_period_timer.one_shot = true
-	grace_period_timer.timeout.connect(_on_grace_period_timeout)
-	add_child(grace_period_timer)
-	
-	# Start grace period on spawn
-	start_grace_period()
+	# Task 1: Fix physics dragging - set collision_mask to only collide with walls (layer 1), not player (layer 4)
+	collision_mask = 1  # Only collide with walls, not player
 
 func _physics_process(delta: float) -> void:
 	# Skip normal behavior if dying
@@ -103,17 +101,17 @@ func _physics_process(delta: float) -> void:
 			if not sfx_growl.playing:
 				sfx_growl.play()
 
-	# PRIORITY: HURT state takes priority over everything
-	if is_stunned or current_state == State.HURT:
-		handle_hurt(delta)
-		move_and_slide()
-		return
-
-	if is_knockback:
-		knockback_timer -= delta
-		if knockback_timer <= 0:
-			is_knockback = false
-			change_state(State.IDLE)
+	# Task 3: Apply knockback friction (replaces stun)
+	if knockback_velocity.length() > 0.1:
+		# Apply friction to slow down knockback
+		var friction_factor = 1.0 - (knockback_friction * delta)
+		friction_factor = max(0.0, friction_factor)
+		knockback_velocity *= friction_factor
+		# Add knockback to velocity
+		velocity += knockback_velocity * delta
+		# Clear very small knockback
+		if knockback_velocity.length() < 0.1:
+			knockback_velocity = Vector2.ZERO
 	
 	var distance_to_player = global_position.distance_to(player.global_position)
 	var can_see_player = check_line_of_sight()
@@ -123,10 +121,12 @@ func _physics_process(delta: float) -> void:
 	if player and "is_attacking" in player:
 		player_is_attacking = player.is_attacking
 	
-	# State machine (only if not stunned/HURT)
+	# State machine
 	match current_state:
 		State.IDLE:
 			handle_idle(delta, distance_to_player, can_see_player, player_is_attacking)
+		State.NOTICE:
+			handle_notice(delta, distance_to_player, can_see_player, player_is_attacking)
 		State.CHASE:
 			handle_chase(delta, distance_to_player, can_see_player, player_is_attacking)
 		State.BLOCK:
@@ -134,7 +134,7 @@ func _physics_process(delta: float) -> void:
 		State.ATTACK:
 			handle_attack(delta, distance_to_player)
 		State.HURT:
-			handle_hurt(delta)  # Should not reach here due to priority check above
+			handle_hurt(delta)
 
 	# Bug 2 Fix: Apply separation force AFTER state handlers (so it doesn't get overridden)
 	# This prevents enemies from stacking on top of each other
@@ -197,6 +197,9 @@ func change_state(new_state: State) -> void:
 	match new_state:
 		State.IDLE:
 			desired_velocity = Vector2.ZERO
+		State.NOTICE:
+			desired_velocity = Vector2.ZERO  # Stop and look at player
+			reaction_timer = 0.0
 		State.CHASE:
 			pass  # Will be set in handle_chase
 		State.BLOCK:
@@ -236,23 +239,39 @@ func apply_separation_force() -> void:
 		desired_velocity += separation * get_physics_process_delta_time()
 
 func handle_idle(_delta: float, distance: float, can_see: bool, _player_attacking: bool) -> void:
-	"""IDLE: Stand still, transition to CHASE if player detected"""
-	if not can_attack_player:
-		desired_velocity = Vector2.ZERO
-		return
-	
+	"""IDLE: Stand still, transition to NOTICE if player detected"""
 	desired_velocity = Vector2.ZERO
 	
-	# Transition to CHASE if player is detected
+	# Task 2: Transition to NOTICE state when player is detected
 	if can_see and distance <= DETECTION_RANGE:
+		change_state(State.NOTICE)
+
+func handle_notice(delta: float, distance: float, can_see: bool, _player_attacking: bool) -> void:
+	"""NOTICE: Look at player, wait for reaction time before chasing"""
+	desired_velocity = Vector2.ZERO  # Stop movement, look at player
+	
+	# Face the player
+	if player:
+		var direction_to_player = (player.global_position - global_position).normalized()
+		if direction_to_player.x < 0:
+			animated_sprite.flip_h = true
+		elif direction_to_player.x > 0:
+			animated_sprite.flip_h = false
+	
+	# Check if player left range
+	if not can_see or distance > DETECTION_RANGE:
+		change_state(State.IDLE)
+		return
+	
+	# Update reaction timer
+	reaction_timer += delta
+	
+	# If reaction time passed, start chasing
+	if reaction_timer >= reaction_time:
 		change_state(State.CHASE)
 
 func handle_chase(_delta: float, distance: float, can_see: bool, player_attacking: bool) -> void:
 	"""CHASE: Slow walk toward player, may block if player attacks"""
-	if not can_attack_player:
-		desired_velocity = Vector2.ZERO
-		return
-	
 	if not can_see:
 		change_state(State.IDLE)
 		return
@@ -266,8 +285,8 @@ func handle_chase(_delta: float, distance: float, can_see: bool, player_attackin
 	var direction = (player.global_position - global_position).normalized()
 	desired_velocity = direction * SPEED
 	
-	# Transition to ATTACK if close enough
-	if distance <= ATTACK_RANGE:
+	# Transition to ATTACK if close enough and can attack
+	if distance <= ATTACK_RANGE and can_attack:
 		change_state(State.ATTACK)
 
 func handle_block(delta: float, distance: float, can_see: bool) -> void:
@@ -277,7 +296,7 @@ func handle_block(delta: float, distance: float, can_see: bool) -> void:
 	
 	# After block duration, transition to attack
 	if block_timer >= block_duration:
-		if distance <= ATTACK_RANGE and can_see:
+		if distance <= ATTACK_RANGE and can_see and can_attack:
 			change_state(State.ATTACK)
 		else:
 			change_state(State.CHASE)
@@ -285,44 +304,40 @@ func handle_block(delta: float, distance: float, can_see: bool) -> void:
 	# If counter-attack flag is set (from shield hit), attack immediately
 	if should_counter_attack:
 		should_counter_attack = false
-		if distance <= ATTACK_RANGE * 1.5:  # Slightly extended range for counter
+		if distance <= ATTACK_RANGE * 1.5 and can_attack:  # Slightly extended range for counter
 			change_state(State.ATTACK)
 
 func handle_attack(_delta: float, distance: float) -> void:
 	"""ATTACK: Standard swing"""
-	if distance <= ATTACK_RANGE:
+	if distance <= ATTACK_RANGE and can_attack:
 		attack()
 	elif distance > ATTACK_RANGE * 1.5:  # Give buffer before switching back
 		change_state(State.CHASE)
 
-func handle_hurt(delta: float) -> void:
-	"""HURT: Stunned state - no movement or AI"""
-	# Handle stun timer
-	if is_stunned:
-		stun_timer -= delta
-		if stun_timer <= 0:
-			is_stunned = false
-			stun_timer = 0.0
-			# Exit HURT state after stun - return to appropriate state
-			if player:
-				var distance_to_player = global_position.distance_to(player.global_position)
-				var can_see_player = check_line_of_sight()
-				if can_see_player and distance_to_player <= ATTACK_RANGE:
-					change_state(State.ATTACK)
-				elif can_see_player and distance_to_player <= DETECTION_RANGE:
-					change_state(State.CHASE)
-				else:
-					change_state(State.IDLE)
-			else:
-				change_state(State.IDLE)
-	
+func handle_hurt(_delta: float) -> void:
+	"""HURT: Brief animation state - quickly return to appropriate state"""
 	desired_velocity = Vector2.ZERO
 	is_defending = false
+	
+	# Exit HURT state quickly - return to appropriate state based on player position
+	if player:
+		var distance_to_player = global_position.distance_to(player.global_position)
+		var can_see_player = check_line_of_sight()
+		if can_see_player and distance_to_player <= ATTACK_RANGE and can_attack:
+			change_state(State.ATTACK)
+		elif can_see_player and distance_to_player <= DETECTION_RANGE:
+			change_state(State.CHASE)
+		else:
+			change_state(State.IDLE)
+	else:
+		change_state(State.IDLE)
 
 func attack() -> void:
 	current_state = State.ATTACK
 	animated_sprite.play("skeleton_attack")
 	velocity = Vector2.ZERO
+	# Start cooldown immediately when attack begins
+	start_attack_cooldown()
 
 
 func take_knockback(direction: Vector2) -> void:
@@ -349,8 +364,8 @@ func update_animation(_delta: float) -> void:
 	if is_dying:
 		return
 	
-	# Don't change animation if damaged animation is playing or stunned
-	if is_playing_damaged or is_stunned:
+	# Don't change animation if damaged animation is playing
+	if is_playing_damaged:
 		return
 	
 	if current_state == State.ATTACK:
@@ -358,6 +373,12 @@ func update_animation(_delta: float) -> void:
 	
 	if current_state == State.HURT:
 		return  # Let hurt animation play
+	
+	if current_state == State.NOTICE:
+		# Play idle animation while noticing (looking at player)
+		if animated_sprite.animation != "skeleton_idle":
+			animated_sprite.play("skeleton_idle")
+		return
 
 	if is_defending or current_state == State.BLOCK:
 		animated_sprite.play("skeleton_defend")
@@ -404,16 +425,15 @@ func _on_animated_sprite_2d_animation_finished() -> void:
 		queue_free()
 		return
 	
-	# After damaged animation, wait for stun to finish (handled in _physics_process)
+	# After damaged animation, exit HURT state (knockback continues in _physics_process)
 	if animated_sprite.animation == "skeleton_damaged":
 		is_playing_damaged = false
-		# Reset animation speed to normal
-		animated_sprite.speed_scale = 1.0
-		# State will be changed from HURT to IDLE/CHASE after stun timer expires
+		# State will be changed from HURT to appropriate state
 		return
 	
 	if current_state == State.ATTACK:
-		# After attack, transition back to appropriate state based on player position
+		# After attack animation finishes, cooldown should already be active
+		# Transition back to appropriate state based on player position
 		if player:
 			var distance_to_player = global_position.distance_to(player.global_position)
 			var can_see_player = check_line_of_sight()
@@ -427,16 +447,14 @@ func _on_animated_sprite_2d_animation_finished() -> void:
 		is_defending = false
 		shield_hit_count = 0
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: int, source_position: Vector2 = Vector2.ZERO) -> void:
 	# Don't take damage if already dying
 	if is_dying:
 		return
 	
-	# Cancel grace period if enemy takes damage (player attacked first)
-	if not can_attack_player:
-		can_attack_player = true
-		if grace_period_timer:
-			grace_period_timer.stop()
+	# Task 2: If in NOTICE state and taking damage, cancel reaction and immediately chase
+	if current_state == State.NOTICE:
+		change_state(State.CHASE)
 	
 	# Play audio based on defense state
 	if is_defending:
@@ -470,35 +488,39 @@ func take_damage(amount: int) -> void:
 	if current_health <= 0:
 		die()
 	else:
-		# SKELETON EXCEPTION: If defending/BLOCKING, don't interrupt or stun
+		# SKELETON EXCEPTION: If defending/BLOCKING, don't interrupt or apply knockback
 		if is_defending or current_state == State.BLOCK:
 			var status = " (defending)"
 			print("Skeleton took ", reduced_damage, " damage (reduced from ", amount, status, "). Health: ", current_health, "/", max_health)
-			return  # Exit early - no stun or animation interrupt when defending
+			return  # Exit early - no knockback or animation interrupt when defending
 		
 		# Task 3: Hit flash effect - flash white for 0.1 seconds
 		_trigger_hit_flash()
 		
+		# Task 3: Apply knockback (replaces stun)
+		if source_position != Vector2.ZERO:
+			var knockback_direction = (global_position - source_position).normalized()
+			knockback_velocity = knockback_direction * knockback_force
+		else:
+			# Fallback: knockback away from player if no source position
+			if player:
+				var knockback_direction = (global_position - player.global_position).normalized()
+				knockback_velocity = knockback_direction * knockback_force
+		
 		# Priority Interrupt: Cancel any current action
 		desired_velocity = Vector2.ZERO
-		velocity = Vector2.ZERO
-		
-		# Trigger stun state (HURT takes priority)
-		is_stunned = true
-		stun_timer = hit_stun_duration
-		change_state(State.HURT)
 		
 		# Play damaged animation immediately (interrupts any current animation)
+		change_state(State.HURT)
 		if not is_playing_damaged:
 			is_playing_damaged = true
 			# Ensure animation doesn't loop
 			if animated_sprite.sprite_frames:
 				animated_sprite.sprite_frames.set_animation_loop("skeleton_damaged", false)
-			# Speed up animation to match short stun duration
-			animated_sprite.speed_scale = 2.0  # Play animation 2x faster
+			animated_sprite.speed_scale = 1.0  # Normal speed for knockback
 			animated_sprite.play("skeleton_damaged")
 		
-		print("Skeleton took ", reduced_damage, " damage (reduced from ", amount, "). Health: ", current_health, "/", max_health, " [STUNNED]")
+		print("Skeleton took ", reduced_damage, " damage (reduced from ", amount, "). Health: ", current_health, "/", max_health, " [KNOCKBACK]")
 
 func die() -> void:
 	if is_dying:
@@ -543,17 +565,12 @@ func die() -> void:
 	# Play death animation
 	animated_sprite.play("skeleton_death")
 
-func start_grace_period() -> void:
-	"""Start the grace period where enemy ignores player unless attacked"""
-	can_attack_player = false
-	if grace_period_timer:
-		grace_period_timer.start()
-		print("Skeleton: Grace period started (4 seconds)")
 
-func _on_grace_period_timeout() -> void:
-	"""Grace period ended, enemy can now attack player"""
-	can_attack_player = true
-	print("Skeleton: Grace period ended, can now attack player")
+func start_attack_cooldown() -> void:
+	"""Start the attack cooldown timer to prevent attack spam"""
+	can_attack = false
+	var cooldown_timer = get_tree().create_timer(attack_cooldown)
+	cooldown_timer.timeout.connect(func(): can_attack = true)
 
 func _trigger_screen_shake(intensity: float, duration: float) -> void:
 	"""Trigger screen shake effect on the camera"""
@@ -607,4 +624,5 @@ func deal_damage() -> void:
 	if distance_to_player <= ATTACK_RANGE * 1.2:  # Slightly extended range
 		# Deal damage to player
 		if player.has_method("take_damage"):
-			player.take_damage(SKELETON_DAMAGE)
+			# Task 2: Pass skeleton's position for knockback
+			player.take_damage(SKELETON_DAMAGE, global_position)

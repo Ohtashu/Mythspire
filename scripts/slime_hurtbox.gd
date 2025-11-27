@@ -112,5 +112,6 @@ func _on_area_entered(area: Area2D) -> void:
 		player.take_knockback(knockback_direction)
 		# Deal damage to player
 		if player.has_method("take_damage"):
-			player.take_damage(slime.SLIME_DAMAGE)
+			# Task 2: Pass slime's position for knockback
+			player.take_damage(slime.SLIME_DAMAGE, slime.global_position)
 

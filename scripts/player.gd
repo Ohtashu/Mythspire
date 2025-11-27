@@ -82,16 +82,21 @@ var use_spear_animations: bool = false
 var is_attacking: bool = false
 var is_moving: bool = false
 var is_running: bool = false
-var is_knockback: bool = false
-var knockback_timer: float = 0.0
-const PLAYER_KNOCKBACK_FORCE = 100.0
-const PLAYER_KNOCKBACK_DURATION = 0.15
 var is_dying: bool = false  # Flag to prevent normal behavior during death animation
 var death_animation_complete: bool = false  # Flag to track if death animation completed
 var spawn_position: Vector2  # Store initial spawn position for respawn
-var is_stunned: bool = false  # Flag to track if player is stunned from taking damage
-var stun_timer: float = 0.0  # Timer for stun duration
-@export var hit_stun_duration: float = 0.15  # Duration of stun in seconds (0.15s = 150ms micro-stun)
+
+# Knockback system (replaces stun)
+var knockback_velocity: Vector2 = Vector2.ZERO
+@export var knockback_force: float = 300.0  # Force of knockback when hit
+@export var knockback_friction: float = 10.0  # Friction to slow down knockback
+var input_lock_timer: float = 0.0  # Timer to lock input during knockback (0.2s)
+const INPUT_LOCK_DURATION: float = 0.2  # Duration to lock input after being hit
+
+# Invincibility system
+var is_invincible: bool = false  # Flag for invincibility frames
+var invincibility_timer: float = 0.0  # Timer for invincibility
+const INVINCIBILITY_DURATION: float = 1.0  # 1 second of invincibility after being hit
 
 # Health system
 var max_health: int = 20  # Starting health (will increase with levels)
@@ -135,23 +140,41 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 	
-	# Handle stun timer
-	if is_stunned:
-		stun_timer -= delta
-		if stun_timer <= 0:
-			is_stunned = false
-			stun_timer = 0.0
-		# During stun, disable all input and movement
-		velocity = Vector2.ZERO
-		is_moving = false
-		move_and_slide()
-		return
+	# Task 1: Handle knockback friction and input lock
+	if knockback_velocity.length() > 0.1:
+		# Apply friction to slow down knockback
+		var friction_factor = 1.0 - (knockback_friction * delta)
+		friction_factor = max(0.0, friction_factor)
+		knockback_velocity *= friction_factor
+		# Add knockback to velocity
+		velocity += knockback_velocity * delta
+		# Clear very small knockback
+		if knockback_velocity.length() < 0.1:
+			knockback_velocity = Vector2.ZERO
 	
-	if is_knockback:
-		knockback_timer -= delta
-		if knockback_timer <= 0:
-			is_knockback = false
-	else:
+	# Handle input lock timer (prevents player from moving during knockback)
+	if input_lock_timer > 0.0:
+		input_lock_timer -= delta
+		if input_lock_timer <= 0.0:
+			input_lock_timer = 0.0
+	
+	# Handle invincibility timer and flashing
+	if is_invincible:
+		invincibility_timer -= delta
+		if invincibility_timer <= 0.0:
+			is_invincible = false
+			invincibility_timer = 0.0
+			# Restore normal modulate
+			if animated_sprite:
+				animated_sprite.modulate = Color.WHITE
+		else:
+			# Flash effect during invincibility (blink every 0.1 seconds)
+			if animated_sprite:
+				var flash_cycle = int(invincibility_timer * 10) % 2
+				animated_sprite.modulate = Color.WHITE if flash_cycle == 0 else Color(1, 1, 1, 0.5)
+	
+	# Only process input if not locked
+	if input_lock_timer <= 0.0:
 		# Get input direction for top-down movement
 		var input_vector := Vector2.ZERO
 		if not is_attacking:
@@ -173,13 +196,18 @@ func _physics_process(delta: float) -> void:
 		# Update is_moving
 		is_moving = input_vector.length() > 0 and not is_attacking
 
-		# Handle spear attack (left mouse button) - disabled during stun
+		# Handle spear attack (left mouse button)
 		if Input.is_action_just_pressed("attack") and use_spear_animations and not is_attacking:
 			is_attacking = true
 			perform_spear_attack()
 
 		# Update animation based on movement
 		update_animation(input_vector, delta, is_running)
+	else:
+		# During input lock, apply friction to velocity (knockback is already applied above)
+		# This allows the player to slide to a stop smoothly
+		velocity = velocity.lerp(Vector2.ZERO, knockback_friction * delta)
+		is_moving = false
 
 	move_and_slide()
 
@@ -263,7 +291,7 @@ func _on_frame_changed() -> void:
 
 func update_animation(direction: Vector2, _delta: float, running: bool) -> void:
 	# Don't change animation while dying, attacking, or stunned
-	if is_dying or is_attacking or is_stunned:
+	if is_dying or is_attacking or input_lock_timer > 0.0:
 		return
 
 	var anim_name: String = ""
@@ -492,20 +520,11 @@ func _check_overlapping_enemies() -> void:
 				enemy.take_knockback(knockback_direction)
 				# Deal damage to enemy (use damage variable instead of constant)
 				if enemy.has_method("take_damage"):
-					enemy.take_damage(damage)
+					enemy.take_damage(damage, global_position)
 
-func take_knockback(direction: Vector2) -> void:
-	# Don't take knockback if dying
-	if is_dying:
-		return
-	
-	is_knockback = true
-	knockback_timer = PLAYER_KNOCKBACK_DURATION
-	velocity = direction * PLAYER_KNOCKBACK_FORCE
-
-func take_damage(amount: int) -> void:
-	# Don't take damage if already dying
-	if is_dying:
+func take_damage(amount: int, source_pos: Vector2 = Vector2.ZERO) -> void:
+	# Don't take damage if already dying or invincible
+	if is_dying or is_invincible:
 		return
 	
 	# Apply defense reduction
@@ -529,22 +548,28 @@ func take_damage(amount: int) -> void:
 			is_attacking = false
 			hurtbox.monitoring = false
 		
-		# Trigger stun state
-		is_stunned = true
-		stun_timer = hit_stun_duration
+		# Task 1: Apply knockback (replaces stun)
+		if source_pos != Vector2.ZERO:
+			var direction = (global_position - source_pos).normalized()
+			knockback_velocity = direction * knockback_force
+			velocity = direction * knockback_force  # Direct velocity assignment
+		else:
+			# Fallback: if no source position, don't apply knockback
+			knockback_velocity = Vector2.ZERO
 		
-		# Stop all movement immediately
-		velocity = Vector2.ZERO
+		# Task 1: Lock input for 0.2 seconds so player slides back
+		input_lock_timer = INPUT_LOCK_DURATION
 		is_moving = false
 		
-		# Try to play damaged animation if it exists
-		# Note: Player might not have a damaged animation, so we'll just use stun
-		# If you add a player_damaged animation later, uncomment this:
-		# if animated_sprite.sprite_frames and animated_sprite.sprite_frames.has_animation("player_damaged"):
-		# 	animated_sprite.sprite_frames.set_animation_loop("player_damaged", false)
-		# 	animated_sprite.play("player_damaged")
+		# Task 1: Start invincibility frames (1 second)
+		is_invincible = true
+		invincibility_timer = INVINCIBILITY_DURATION
 		
-		print("Player took ", final_damage, " damage (", amount, " - ", defense, " defense). Health: ", current_health, "/", max_health, " [STUNNED]")
+		# Start flashing effect
+		if animated_sprite:
+			animated_sprite.modulate = Color(1, 1, 1, 0.5)
+		
+		print("Player took ", final_damage, " damage (", amount, " - ", defense, " defense). Health: ", current_health, "/", max_health, " [KNOCKBACK]")
 
 func die() -> void:
 	if is_dying:
@@ -622,8 +647,10 @@ func revive() -> void:
 	death_animation_complete = false
 	is_attacking = false
 	is_moving = false
-	is_knockback = false
-	knockback_timer = 0.0
+	knockback_velocity = Vector2.ZERO
+	input_lock_timer = 0.0
+	is_invincible = false
+	invincibility_timer = 0.0
 	velocity = Vector2.ZERO
 	
 	# Re-enable collision

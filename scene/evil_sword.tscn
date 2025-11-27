@@ -256,6 +256,8 @@ radius = 20.024984
 
 [node name="evil_sword" type="CharacterBody2D" groups=["enemies"]]
 y_sort_enabled = true
+collision_layer = 4
+collision_mask = 2
 script = ExtResource("5_evil_sword")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
