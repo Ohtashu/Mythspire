@@ -52,6 +52,7 @@ offset_top = 12.0
 offset_right = 48.0
 offset_bottom = 12.0
 scale = Vector2(1.5, 1.5)
+mouse_filter = 2
 script = ExtResource("2_health_boxes")
 
 [node name="main_healthbar" type="TextureProgressBar" parent="health_control"]
@@ -81,10 +82,10 @@ script = ExtResource("13_user_profile")
 [node name="hotbar_control" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 0
-offset_left = 5.0000153
-offset_top = -2.9999847
-offset_right = 45.000015
-offset_bottom = 37.0
+offset_left = 13.0
+offset_top = 56.0
+offset_right = 53.0
+offset_bottom = 95.999985
 scale = Vector2(1.5, 1.5)
 
 [node name="hotbar" type="GridContainer" parent="hotbar_control"]

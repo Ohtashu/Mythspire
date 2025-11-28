@@ -243,13 +243,20 @@ func perform_spear_attack() -> void:
 		_:
 			attack_anim_name = "attack_spear_down"
 
+	# Disable looping for this attack animation so it plays once and stops
+	if animated_sprite.sprite_frames:
+		animated_sprite.sprite_frames.set_animation_loop(attack_anim_name, false)
+	
 	animated_sprite.play(attack_anim_name)
+	print("Player: Attack started with animation: ", attack_anim_name)
 	
 	# Play attack sound and voice immediately when attack starts
 	if attack_sound:
 		attack_sound.play()
 	if attack_voice:
 		attack_voice.play()
+
+
 
 func _on_animation_finished() -> void:
 	# Check if death animation finished

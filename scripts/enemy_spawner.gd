@@ -143,10 +143,29 @@ func _on_enemy_died() -> void:
 		return
 	
 	alive_count -= 1
+	print("EnemySpawner: Enemy died! alive_count: ", alive_count)
 	if alive_count == 0:
-		# Check if timer is still in the tree before starting
-		if timer and timer.is_inside_tree():
-			timer.start()
+		print("EnemySpawner: All enemies defeated!")
+		
+		# Check if this is dungeon_floor_2 - if so, spawn the boss
+		if dungeon_map and "dungeon_floor_2" in dungeon_map.name:
+			print("EnemySpawner: All enemies defeated in dungeon_floor_2! Triggering boss spawn...")
+			# Call deferred to ensure everything is ready
+			call_deferred("_trigger_boss_spawn")
+		else:
+			# Normal spawn cycle for other levels
+			print("EnemySpawner: Not dungeon_floor_2 (map name: ", dungeon_map.name if dungeon_map else "null", "), resuming spawn cycle")
+			if timer and timer.is_inside_tree():
+				timer.start()
+
+func _trigger_boss_spawn() -> void:
+	"""Trigger boss spawn for dungeon_floor_2"""
+	print("EnemySpawner: _trigger_boss_spawn() called")
+	if GameManager:
+		print("EnemySpawner: GameManager found, calling start_boss_sequence()")
+		GameManager.start_boss_sequence("res://scene/minotaur.tscn", "BossSpawnPos")
+	else:
+		push_error("EnemySpawner: GameManager not found!")
 
 func _on_timer_timeout() -> void:
 	spawn_wave()

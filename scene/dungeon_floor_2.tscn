@@ -4325,6 +4325,9 @@ position = Vector2(634, -156)
 [node name="SpawnPos_Entrance" type="Marker2D" parent="."]
 position = Vector2(20, 296)
 
+[node name="BossSpawnPos" type="Marker2D" parent="."]
+position = Vector2(534, 280)
+
 [node name="EnemySpawner" parent="." instance=ExtResource("4_t76ed")]
 
 [node name="Spawner1" type="Marker2D" parent="EnemySpawner"]

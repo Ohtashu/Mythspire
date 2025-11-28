@@ -14,7 +14,8 @@ var click_profile_sound: AudioStreamPlayer2D = null
 func _ready() -> void:
 	print("\n=== UserProfile: Button _ready() ===")
 	print("UserProfile: Button name: ", name)
-	var parent_name = get_parent().name if get_parent() else "No parent"
+	var parent_node = get_parent()
+	var parent_name = parent_node.name if parent_node else StringName("No parent")
 	print("UserProfile: Button parent: ", parent_name)
 	print("UserProfile: Button path: ", get_path())
 	
@@ -22,6 +23,10 @@ func _ready() -> void:
 	if disabled:
 		disabled = false
 		print("UserProfile: Button was disabled, now enabled")
+	
+	# Force mouse filter to STOP so the button receives input
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	print("UserProfile: Mouse filter set to STOP")
 	
 	# Connect button press signal - use direct method reference
 	print("UserProfile: Attempting to connect pressed signal...")
@@ -69,6 +74,15 @@ func _on_button_pressed() -> void:
 		close_profile()
 	else:
 		open_profile()
+
+func _gui_input(event: InputEvent) -> void:
+	"""Catch mouse clicks directly as a backup"""
+	if event is InputEventMouseButton:
+		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			print("UserProfile: Direct GUI input detected - calling button press")
+			_on_button_pressed()
+			# In Godot 4.5, use get_tree().root.gui_release_focus() or consume the event
+			# We can also just return true to indicate the event was handled
 
 func open_profile() -> void:
 	if is_profile_open:

@@ -1748,7 +1748,7 @@ animations = [{
 }],
 "loop": false,
 "name": &"attack_spear_down",
-"speed": 13.0
+"speed": 10.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -1777,7 +1777,7 @@ animations = [{
 }],
 "loop": false,
 "name": &"attack_spear_left",
-"speed": 13.0
+"speed": 10.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -1835,7 +1835,7 @@ animations = [{
 }],
 "loop": false,
 "name": &"attack_spear_left_up",
-"speed": 13.0
+"speed": 10.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -1862,9 +1862,9 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_dwdw8")
 }],
-"loop": false,
+"loop": true,
 "name": &"attack_spear_right",
-"speed": 13.0
+"speed": 10.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -3638,7 +3638,7 @@ position = Vector2(-1.4901161e-08, -11)
 rotation = -0.006530262
 scale = Vector2(1.25, 1.171875)
 sprite_frames = SubResource("SpriteFrames_ml7e8")
-animation = &"idle_down"
+animation = &"attack_spear_down"
 autoplay = "idle_down"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
