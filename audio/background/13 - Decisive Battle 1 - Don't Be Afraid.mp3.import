@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dv1hg3cbn7s8n"
+path="res://.godot/imported/13 - Decisive Battle 1 - Don't Be Afraid.mp3-6f218d8e9a7587791c27c08246a59aae.mp3str"
+
+[deps]
+
+source_file="res://audio/background/13 - Decisive Battle 1 - Don't Be Afraid.mp3"
+dest_files=["res://.godot/imported/13 - Decisive Battle 1 - Don't Be Afraid.mp3-6f218d8e9a7587791c27c08246a59aae.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

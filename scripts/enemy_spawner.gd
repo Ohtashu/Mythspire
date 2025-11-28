@@ -91,6 +91,11 @@ func detect_spawn_points() -> void:
 		print("EnemySpawner: Detected ", spawn_points.size(), " spawn points")
 
 func spawn_wave() -> void:
+	# Task 4: Don't spawn if boss is active
+	if GameManager and GameManager.is_boss_active:
+		print("EnemySpawner: Boss is active, skipping spawn wave")
+		return
+	
 	# Validate dungeon map
 	if not dungeon_map:
 		push_error("EnemySpawner: Cannot spawn - dungeon_map is null!")

@@ -12,6 +12,15 @@ var current_map_node: Node = null  # Reference to the currently loaded map
 var player_health: int = 100  # Player's current health (default to 100 or max health)
 var target_spawn_tag: String = ""  # Name of the Marker2D to spawn at in the next scene
 
+# Boss Fight System
+var ui_layer: CanvasLayer = null  # Reference to UI layer (player_hud)
+var music_player: AudioStreamPlayer = null  # Reference to MusicPlayer
+var sfx_player: AudioStreamPlayer = null  # Reference to SFXPlayer
+var is_boss_active: bool = false  # Flag to track if boss is currently active
+var current_boss: Node = null  # Reference to current boss instance
+const BOSS_MUSIC_PATH = "res://audio/background/13 - Decisive Battle 1 - Don't Be Afraid.mp3"
+const VICTORY_MUSIC_PATH = "res://audio/background/06 - Victory!.mp3"
+
 func _ready() -> void:
 	print("GameManager: Autoload initialized")
 
@@ -114,3 +123,142 @@ func change_scene(new_scene_path: String, spawn_tag: String, current_hp: int) ->
 func load_new_level(scene_path: String, spawn_tag: String) -> void:
 	"""Legacy alias - redirects to load_level()"""
 	load_level(scene_path, spawn_tag)
+
+# Boss Fight System Functions
+func setup_ui_references(ui: CanvasLayer, music: AudioStreamPlayer, sfx: AudioStreamPlayer) -> void:
+	"""Setup references to UI layer, music player, and SFX player"""
+	ui_layer = ui
+	music_player = music
+	sfx_player = sfx
+	print("GameManager: UI references set - UI: ", ui_layer, " | Music: ", music_player, " | SFX: ", sfx_player)
+
+func start_boss_sequence(boss_scene_path: String, spawn_pos_name: String = "BossSpawnPos") -> void:
+	"""Orchestrate the boss fight sequence: Warning -> Music -> Spawn -> Health Bar"""
+	print("GameManager: Starting boss sequence...")
+	
+	# Validate references
+	if not ui_layer:
+		push_error("GameManager: ui_layer is null! Call setup_ui_references() first.")
+		return
+	
+	# Set boss active flag
+	is_boss_active = true
+	
+	# Step 1: Play Boss Music
+	if music_player:
+		var boss_music = load(BOSS_MUSIC_PATH) as AudioStream
+		if boss_music:
+			music_player.stream = boss_music
+			music_player.play()
+			print("GameManager: Boss music started")
+		else:
+			push_warning("GameManager: Failed to load boss music!")
+	
+	# Step 2: Disable normal EnemySpawner
+	var enemy_spawners = get_tree().get_nodes_in_group("enemy_spawner")
+	for spawner in enemy_spawners:
+		if spawner.has_method("set_enabled"):
+			spawner.set_enabled(false)
+		else:
+			# Disable by stopping the timer
+			var timer = spawner.get_node_or_null("Timer")
+			if timer:
+				timer.stop()
+		print("GameManager: Disabled enemy spawner: ", spawner.name)
+	
+	# Step 3: Show Boss Warning Label (flash it)
+	if ui_layer.has_method("show_boss_warning"):
+		ui_layer.show_boss_warning()
+		# Wait for warning to finish (it handles its own timing)
+		await get_tree().create_timer(3.6).timeout  # 6 loops * 0.6s = 3.6s
+	else:
+		# Fallback: find warning label directly
+		var warning_label = ui_layer.get_node_or_null("BossWarningLabel")
+		if warning_label:
+			warning_label.visible = true
+			# Simple flash effect
+			var tween = ui_layer.create_tween()
+			tween.set_loops(6)
+			tween.tween_property(warning_label, "modulate:a", 0.3, 0.3)
+			tween.tween_property(warning_label, "modulate:a", 1.0, 0.3)
+			await tween.finished
+			warning_label.visible = false
+	
+	# Step 4: Wait 3 seconds
+	await get_tree().create_timer(3.0).timeout
+	
+	# Step 5: Spawn Minotaur at BossSpawnPos
+	var current_map = current_map_node
+	if not current_map:
+		push_error("GameManager: current_map_node is null! Cannot spawn boss.")
+		return
+	
+	# Find spawn position
+	var spawn_pos = current_map.find_child(spawn_pos_name, true, false)
+	if not spawn_pos or not spawn_pos is Marker2D:
+		push_error("GameManager: Could not find Marker2D '", spawn_pos_name, "' in current map!")
+		return
+	
+	# Load and instantiate boss
+	var boss_scene = load(boss_scene_path) as PackedScene
+	if not boss_scene:
+		push_error("GameManager: Failed to load boss scene: ", boss_scene_path)
+		return
+	
+	var boss = boss_scene.instantiate()
+	if not boss:
+		push_error("GameManager: Failed to instantiate boss!")
+		return
+	
+	# Set position and add to map
+	boss.global_position = spawn_pos.global_position
+	current_map.add_child(boss)
+	current_boss = boss
+	print("GameManager: Boss spawned at position: ", boss.global_position)
+	
+	# Step 6: Connect boss health_changed signal to UI update method
+	if boss.has_signal("health_changed"):
+		boss.health_changed.connect(ui_layer.update_boss_health)
+		print("GameManager: Connected boss health_changed signal to UI")
+	
+	# Initialize health bar with boss's current HP (this will also make it visible)
+	if "current_hp" in boss and "max_hp" in boss:
+		ui_layer.update_boss_health(boss.current_hp, boss.max_hp)
+	
+	print("GameManager: Boss sequence complete!")
+
+func _on_boss_health_changed(current_hp: int, max_hp: int) -> void:
+	"""Callback for boss health_changed signal"""
+	if ui_layer and ui_layer.has_method("update_boss_health"):
+		ui_layer.update_boss_health(current_hp, max_hp)
+
+func boss_defeated() -> void:
+	"""Handle boss defeat: Stop music, hide health bar, show victory screen"""
+	print("GameManager: Boss defeated!")
+	
+	# Step 1: Stop Boss Music
+	if music_player:
+		music_player.stop()
+		print("GameManager: Boss music stopped")
+	
+	# Step 2: Play Victory Sound
+	if sfx_player:
+		var victory_sound = load(VICTORY_MUSIC_PATH) as AudioStream
+		if victory_sound:
+			sfx_player.stream = victory_sound
+			sfx_player.play()
+			print("GameManager: Victory sound played")
+	
+	# Step 3: Hide Boss Health Bar
+	if ui_layer and ui_layer.has_method("hide_boss_health_bar"):
+		ui_layer.hide_boss_health_bar()
+	
+	# Step 4: Show Victory Screen
+	if ui_layer and ui_layer.has_method("show_victory_screen"):
+		ui_layer.show_victory_screen()
+	
+	# Clear boss active flag
+	is_boss_active = false
+	current_boss = null
+	
+	print("GameManager: Boss defeat sequence complete!")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://cxeiil48p0cdh"]
+[gd_scene load_steps=19 format=3 uid="uid://cxeiil48p0cdh"]
 
 [ext_resource type="Script" uid="uid://cv255ldwgo6y7" path="res://scripts/exp_bar.gd" id="1_5txje"]
 [ext_resource type="Texture2D" uid="uid://2b4ccr7lhslf" path="res://GUI/main_menu/MinimalBarBackground.png" id="1_111gq"]
@@ -14,6 +14,10 @@
 [ext_resource type="Script" uid="uid://c3ix04be026qd" path="res://scripts/current_level.gd" id="12_g8712"]
 [ext_resource type="Script" uid="uid://b4une1nywta3q" path="res://scripts/user_profile.gd" id="13_user_profile"]
 [ext_resource type="AudioStream" uid="uid://ds8wbahycarl7" path="res://audio/main_menu/pop_3.wav" id="14_vte8x"]
+[ext_resource type="FontFile" uid="uid://dghwpyh5twng5" path="res://fonts/DeadRevolverGame.ttf" id="15_v6rxo"]
+[ext_resource type="Texture2D" uid="uid://7tllcgri4c4g" path="res://assets/bar/BossBarCBackground.png" id="16_jakf1"]
+[ext_resource type="Texture2D" uid="uid://b8r8tth68pyej" path="res://assets/bar/BossBarCForeground.png" id="17_sj6w6"]
+[ext_resource type="Texture2D" uid="uid://cauwijccfrmuk" path="res://assets/bar/BossBarCFill.png" id="18_w6kgj"]
 
 [node name="player_hud" type="CanvasLayer"]
 
@@ -77,10 +81,10 @@ script = ExtResource("13_user_profile")
 [node name="hotbar_control" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 0
-offset_left = 248.0
-offset_top = 223.00002
-offset_right = 288.0
-offset_bottom = 263.0
+offset_left = 5.0000153
+offset_top = -2.9999847
+offset_right = 45.000015
+offset_bottom = 37.0
 scale = Vector2(1.5, 1.5)
 
 [node name="hotbar" type="GridContainer" parent="hotbar_control"]
@@ -91,7 +95,6 @@ offset_top = 54.000008
 offset_right = 49.333332
 offset_bottom = 78.000015
 scale = Vector2(1.2, 1.2)
-columns = 2
 
 [node name="spear_button" type="Button" parent="hotbar_control/hotbar"]
 layout_mode = 2
@@ -120,3 +123,25 @@ script = ExtResource("12_g8712")
 
 [node name="click_profile" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("14_vte8x")
+
+[node name="BossWarningLabel" type="Label" parent="."]
+visible = false
+offset_left = 45.0
+offset_top = 152.0
+offset_right = 605.0
+offset_bottom = 184.0
+theme_override_colors/font_color = Color(1, 0.23529412, 0.03137255, 1)
+theme_override_fonts/font = ExtResource("15_v6rxo")
+theme_override_font_sizes/font_size = 32
+text = "warning: boss approaching"
+
+[node name="BossHealthBar" type="TextureProgressBar" parent="."]
+visible = false
+offset_left = 89.0
+offset_top = 320.0
+offset_right = 576.0
+offset_bottom = 354.0
+nine_patch_stretch = true
+texture_under = ExtResource("16_jakf1")
+texture_over = ExtResource("17_sj6w6")
+texture_progress = ExtResource("18_w6kgj")

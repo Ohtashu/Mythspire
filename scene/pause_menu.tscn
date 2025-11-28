@@ -51,7 +51,7 @@ offset_right = 218.0
 offset_bottom = 171.0
 theme = ExtResource("1_71u2q")
 
-[node name="Label" type="Label" parent="ContentContainer/pause_panel"]
+[node name="TitleLabel" type="Label" parent="ContentContainer/pause_panel"]
 layout_mode = 0
 offset_left = 60.0
 offset_top = -10.0
