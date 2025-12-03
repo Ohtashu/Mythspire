@@ -13,12 +13,12 @@ enum State {IDLE, NOTICE, CHASE, BLOCK, ATTACK, HURT}
 
 var player: CharacterBody2D
 var raycast: RayCast2D
-const SPEED = 25.0  # Slow, steady walk
+const SPEED = 30.0  # Increased from 25 for more dynamic combat
 const DETECTION_RANGE = 150.0
 const ATTACK_RANGE = 30.0
-const BLOCK_CHANCE = 0.4  # 40% chance to block
-const BLOCK_DURATION_MIN = 1.0  # Minimum block duration
-const BLOCK_DURATION_MAX = 2.0  # Maximum block duration
+const BLOCK_CHANCE = 0.25  # Reduced from 40% to 25% - blocks less often
+const BLOCK_DURATION_MIN = 0.8  # Reduced from 1.0
+const BLOCK_DURATION_MAX = 1.5  # Reduced from 2.0
 const SEPARATION_FORCE = 50.0  # Force to push enemies apart
 const SEPARATION_DISTANCE = 30.0  # Distance to start separating
 @export var friction: float = 10.0  # Velocity smoothing factor (higher = smoother, use with delta)
@@ -55,10 +55,10 @@ var knockback_velocity: Vector2 = Vector2.ZERO
 @export var knockback_friction: float = 8.0  # Friction to slow down knockback
 
 # Health system
-var max_health: int = 25  # Reduced from 50 (was too high)
-var current_health: int = 25
-const SKELETON_DAMAGE = 5  # Damage skeleton deals to player (reduced for level 1 balance)
-const SKELETON_DAMAGE_DEFENDING = 2  # Reduced damage when skeleton is defending
+var max_health: int = 18  # Reduced from 25 - easier to kill
+var current_health: int = 18
+const SKELETON_DAMAGE = 3  # Reduced from 5 - less punishing
+const SKELETON_DAMAGE_DEFENDING = 1  # Reduced from 2
 
 func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player")

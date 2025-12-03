@@ -4326,12 +4326,13 @@ position = Vector2(634, -156)
 position = Vector2(20, 296)
 
 [node name="BossSpawnPos" type="Marker2D" parent="."]
-position = Vector2(534, 280)
+position = Vector2(407, 265)
 
 [node name="EnemySpawner" parent="." instance=ExtResource("4_t76ed")]
+position = Vector2(1, 0)
 
 [node name="Spawner1" type="Marker2D" parent="EnemySpawner"]
-position = Vector2(425, 420)
+position = Vector2(399, 399)
 
 [node name="Spawner2" type="Marker2D" parent="EnemySpawner"]
 position = Vector2(652, 230)
@@ -4349,9 +4350,9 @@ position = Vector2(453, 60)
 position = Vector2(308, 163)
 
 [node name="Spawner7" type="Marker2D" parent="EnemySpawner"]
-position = Vector2(119, 215)
+position = Vector2(165, 280)
 
 [node name="Spawner8" type="Marker2D" parent="EnemySpawner"]
-position = Vector2(126, 412)
+position = Vector2(170, 398)
 
 [node name="Timer" type="Timer" parent="EnemySpawner"]

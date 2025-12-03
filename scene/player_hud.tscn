@@ -18,8 +18,10 @@
 [ext_resource type="Texture2D" uid="uid://7tllcgri4c4g" path="res://assets/bar/BossBarCBackground.png" id="16_jakf1"]
 [ext_resource type="Texture2D" uid="uid://b8r8tth68pyej" path="res://assets/bar/BossBarCForeground.png" id="17_sj6w6"]
 [ext_resource type="Texture2D" uid="uid://cauwijccfrmuk" path="res://assets/bar/BossBarCFill.png" id="18_w6kgj"]
+[ext_resource type="Script" path="res://scripts/player_hud.gd" id="19_player_hud"]
 
 [node name="player_hud" type="CanvasLayer"]
+script = ExtResource("19_player_hud")
 
 [node name="exp_control" type="Control" parent="."]
 layout_mode = 3

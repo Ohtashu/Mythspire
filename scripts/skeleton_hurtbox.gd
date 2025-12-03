@@ -100,11 +100,6 @@ func _on_area_entered(area: Area2D) -> void:
 		return
 	
 	# Additional safety checks: Only deal damage during attack frames
-	# When defending, deal reduced damage instead of none
-	var damage_to_deal = skeleton.SKELETON_DAMAGE
-	if skeleton.is_defending:
-		damage_to_deal = skeleton.SKELETON_DAMAGE_DEFENDING
-	
 	if skeleton.current_state != skeleton.State.ATTACK:
 		return  # Only deal damage when in ATTACK state
 	

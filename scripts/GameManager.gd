@@ -14,8 +14,8 @@ var target_spawn_tag: String = ""  # Name of the Marker2D to spawn at in the nex
 
 # Boss Fight System
 var ui_layer: CanvasLayer = null  # Reference to UI layer (player_hud)
-var music_player: AudioStreamPlayer = null  # Reference to MusicPlayer
-var sfx_player: AudioStreamPlayer = null  # Reference to SFXPlayer
+var music_player: AudioStreamPlayer2D = null  # Reference to MusicPlayer
+var sfx_player: AudioStreamPlayer2D = null  # Reference to SFXPlayer
 var is_boss_active: bool = false  # Flag to track if boss is currently active
 var current_boss: Node = null  # Reference to current boss instance
 const BOSS_MUSIC_PATH = "res://audio/background/13 - Decisive Battle 1 - Don't Be Afraid.mp3"
@@ -125,7 +125,7 @@ func load_new_level(scene_path: String, spawn_tag: String) -> void:
 	load_level(scene_path, spawn_tag)
 
 # Boss Fight System Functions
-func setup_ui_references(ui: CanvasLayer, music: AudioStreamPlayer, sfx: AudioStreamPlayer) -> void:
+func setup_ui_references(ui: CanvasLayer, music: AudioStreamPlayer2D, sfx: AudioStreamPlayer2D) -> void:
 	"""Setup references to UI layer, music player, and SFX player"""
 	ui_layer = ui
 	music_player = music
@@ -253,9 +253,13 @@ func boss_defeated() -> void:
 	if ui_layer and ui_layer.has_method("hide_boss_health_bar"):
 		ui_layer.hide_boss_health_bar()
 	
-	# Step 4: Show Victory Screen
-	if ui_layer and ui_layer.has_method("show_victory_screen"):
-		ui_layer.show_victory_screen()
+	# Step 4: Show Victory Screen using game_over scene
+	var game_over_screen = get_tree().get_first_node_in_group("game_over")
+	if game_over_screen and game_over_screen.has_method("show_victory"):
+		game_over_screen.show_victory()
+		print("GameManager: Victory screen shown")
+	else:
+		print("GameManager: Warning - game_over screen not found or missing show_victory method")
 	
 	# Clear boss active flag
 	is_boss_active = false

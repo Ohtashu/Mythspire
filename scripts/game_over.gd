@@ -5,11 +5,13 @@ extends Control
 
 @onready var tryagain_button: TextureButton = get_node_or_null("ContentContainer/tryagain_button")
 @onready var game_over_music: AudioStreamPlayer2D = get_node_or_null("game_over_music")
+@onready var title_label: Label = get_node_or_null("Label")
 
 # Retry Configuration - Hard Reset Settings
 @export var game_scene_path: String = "res://scene/game.tscn"  # Path to the main game scene to reload
 
 var player: CharacterBody2D
+var is_victory: bool = false  # Track if this is a victory screen
 
 func _ready() -> void:
 	# Hide the screen initially
@@ -17,6 +19,9 @@ func _ready() -> void:
 	
 	# Set process mode to always so it can receive input while paused
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	
+	# Add to game_over group so GameManager can find it
+	add_to_group("game_over")
 	
 	# Find player reference
 	player = get_tree().get_first_node_in_group("player")
@@ -30,6 +35,13 @@ func _ready() -> void:
 	# We don't need to connect it here since the button script handles it
 
 func show_game_over() -> void:
+	# This is a defeat, not a victory
+	is_victory = false
+	
+	# Update label to show defeat
+	if title_label:
+		title_label.text = "Game Over"
+	
 	# Pause the game
 	get_tree().paused = true
 	
@@ -41,6 +53,24 @@ func show_game_over() -> void:
 		game_over_music.play()
 	else:
 		print("WARNING: game_over_music not found!")
+
+func show_victory() -> void:
+	"""Called when player defeats the boss - shows victory screen"""
+	# This is a victory!
+	is_victory = true
+	
+	# Update label to show victory
+	if title_label:
+		title_label.text = "VICTORY!"
+	
+	# Pause the game
+	get_tree().paused = true
+	
+	# Show the screen
+	visible = true
+	
+	# Victory music is handled by GameManager
+	print("Victory screen displayed!")
 
 func try_again() -> void:
 	"""Called by tryagain.gd when the Try Again button is pressed - Performs a Hard Reset"""

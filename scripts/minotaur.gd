@@ -2,347 +2,353 @@ extends CharacterBody2D
 
 const DamageIndicator = preload("res://scene/DamageIndicator.tscn")
 
-# Signal for health changes (for UI updates)
+# Signals
 signal health_changed(current_hp: int, max_hp: int)
 
+# Node references
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
-@onready var hitbox_area: Area2D = get_node_or_null("hitbox/hitbox")
-@onready var hitbox_host: Node2D = get_node_or_null("hitbox")
 @onready var damage_spawn_point: Marker2D = get_node_or_null("DamageSpawnPoint")
+@onready var hurtbox: Area2D = get_node_or_null("hurtbox")
+@onready var hitbox: Area2D = get_node_or_null("hitbox")
+@onready var slash_sound: AudioStreamPlayer2D = get_node_or_null("slash")
+@onready var stomp_sound: AudioStreamPlayer2D = get_node_or_null("stomp")
+@onready var roar_sound: AudioStreamPlayer2D = get_node_or_null("roar")
+
+# State Machine
+enum State { IDLE, CHASE, ATTACK_AXE, ATTACK_STOMP, DAMAGED, RAGE_MODE, DEAD }
+var current_state: State = State.IDLE
+var previous_state: State = State.IDLE
 
 # Boss Stats
 var max_hp: int = 500
 var current_hp: int = 500
-const SPEED: float = 50.0  # Slow walk speed
-const CHARGE_SPEED: float = 180.0  # Fast charge speed (Phase 2)
-var is_enraged: bool = false
-const ATTACK_RANGE: float = 60.0
-const DETECTION_RANGE: float = 250.0
-const CHARGE_DISTANCE_THRESHOLD: float = 150.0  # Distance to trigger charge when enraged
-const CHARGE_CHANCE: float = 0.3  # 30% chance to charge when conditions met
+const BASE_SPEED: float = 40.0
+const RAGE_SPEED: float = 70.0
+var current_speed: float = BASE_SPEED
+const MINOTAUR_DAMAGE: int = 8
+
+# Combat Ranges
+const AGGRO_RANGE: float = 250.0
+const CLOSE_RANGE: float = 60.0
+const MEDIUM_RANGE: float = 120.0
 
 # Attack System
 var can_attack: bool = true
-const ATTACK_COOLDOWN: float = 2.0
-var attack_timer: float = 0.0
-var attack_windup_timer: float = 0.0
-const ATTACK_WINDUP: float = 0.6  # Wind-up time before hitbox activates
-const ATTACK_ACTIVE_DURATION: float = 0.2  # How long hitbox stays active
-var attack_active_timer: float = 0.0
-const MINOTAUR_DAMAGE: int = 8  # Boss damage to player
+var attack_cooldown_timer: float = 0.0
+const NORMAL_ATTACK_COOLDOWN: float = 1.5
+const RAGE_ATTACK_COOLDOWN: float = 0.9
+var current_attack_cooldown: float = NORMAL_ATTACK_COOLDOWN
 
-# Charge System
-var charge_timer: float = 0.0
-const CHARGE_DURATION: float = 1.5  # How long charge lasts
-var charge_direction: Vector2 = Vector2.ZERO
-var is_charging: bool = false
+# Rage System
+var is_enraged: bool = false
+const RAGE_THRESHOLD: float = 0.4  # 40% HP
 
-# State Machine
-enum State {IDLE, NOTICE, CHASE, ATTACK, CHARGE, DEATH}
-var current_state: State = State.IDLE
-var desired_velocity: Vector2 = Vector2.ZERO
-@export var friction: float = 10.0  # Velocity smoothing
+# Damage System
+var is_damaged: bool = false
+var damage_timer: float = 0.0
+const DAMAGE_STUN_DURATION: float = 0.2
 
-# Reaction Time
-var reaction_timer: float = 0.0
-const REACTION_TIME: float = 1.0  # Time to notice player before chasing
+# Stomp Attack
+const STOMP_RADIUS: float = 100.0
+const STOMP_DAMAGE: int = 12
 
-# Player Reference
+# Hitbox Frame Control (for axe attack)
+const HITBOX_ACTIVE_FRAMES: Array = [3, 4]  # Frames where hitbox is active
+var last_attack_frame: int = -1
+var has_hit_player_this_attack: bool = false  # Prevent multi-hit
+
+# Animation Frame Offset Fix
+@export var attack_offset_fix: Vector2 = Vector2(0, 0)  # Adjust in Inspector for attack_animation frame 1
+
+# Roar System
+var roar_timer: float = 0.0
+const ROAR_INTERVAL_MIN: float = 5.0  # Minimum seconds between roars
+const ROAR_INTERVAL_MAX: float = 6.0  # Maximum seconds between roars
+var next_roar_time: float = 5.0
+
+# Player & World
 var player: CharacterBody2D = null
-
-# Raycast for line of sight
-var raycast: RayCast2D
-
-# Death flag
+var raycast: RayCast2D = null
+var camera: Camera2D = null
 var is_dying: bool = false
 
-# Screen shake reference
-var camera: Camera2D = null
+# Movement
+var desired_velocity: Vector2 = Vector2.ZERO
+@export var friction: float = 10.0
 
 func _ready() -> void:
-	# Get player from GameManager
-	if GameManager.player_ref:
+	# Get player reference
+	player = get_tree().get_first_node_in_group("player")
+	if not player and GameManager.player_ref:
 		player = GameManager.player_ref
-	else:
-		# Fallback: try to find player in scene
-		player = get_tree().get_first_node_in_group("player")
-		if not player:
-			var game_root = get_tree().current_scene
-			if game_root:
-				player = game_root.get_node_or_null("Player")
 	
-	# Add raycast for line of sight
+	# Setup raycast for line of sight
 	raycast = RayCast2D.new()
 	raycast.collide_with_bodies = true
 	raycast.collision_mask = 1  # World layer
 	add_child(raycast)
 	
-	# Connect animation signals
-	animated_sprite.animation_finished.connect(_on_animation_finished)
-	
-	# Initialize health
-	current_hp = max_hp
-	
-	# Set collision mask to ignore player (layer 4), only collide with walls (layer 1)
-	set_collision_mask_value(1, true)   # Collide with walls
-	set_collision_mask_value(4, false)  # Don't collide with player
-	
-	# Disable hitbox by default (controlled by hitbox_host script)
-	if hitbox_area:
-		hitbox_area.monitoring = false
-		hitbox_area.monitorable = false
-	if hitbox_host and hitbox_host.has_method("_ready"):
-		# Hitbox will be disabled by its own script
-		pass
-	
 	# Get camera for screen shake
 	camera = get_viewport().get_camera_2d()
 	
-	print("Minotaur Boss initialized - HP: ", current_hp, "/", max_hp)
+	# Connect signals
+	animated_sprite.animation_finished.connect(_on_animation_finished)
+	animated_sprite.frame_changed.connect(_on_animated_sprite_frame_changed)
+	
+	# Setup hurtbox (receives damage from player)
+	if hurtbox:
+		hurtbox.area_entered.connect(_on_hurtbox_area_entered)
+		hurtbox.monitoring = true  # Always monitor for player attacks
+		hurtbox.monitorable = true
+		print("[MINOTAUR] Hurtbox setup - Layer: ", hurtbox.collision_layer, " | Mask: ", hurtbox.collision_mask)
+	else:
+		print("[MINOTAUR ERROR] Hurtbox not found!")
+	
+	# Setup hitbox (deals damage to player)
+	if hitbox:
+		hitbox.area_entered.connect(_on_hitbox_area_entered)
+		hitbox.monitoring = false  # Start disabled, controlled by animation frames
+		hitbox.monitorable = false
+		print("[MINOTAUR] Hitbox setup - will be controlled by animation frames")
+	else:
+		print("[MINOTAUR ERROR] Hitbox not found!")
+	
+	# Setup collision
+	set_collision_mask_value(1, true)   # Collide with walls
+	set_collision_mask_value(4, false)  # Don't collide with player
+	
+	# Add to boss group
+	add_to_group("boss")
+	
+	# Initialize
+	current_hp = max_hp
+	current_state = State.IDLE
+	
+	print("Minotaur Boss initialized - HP: ", max_hp, " | Player: ", player != null)
 
 func _physics_process(delta: float) -> void:
-	# Skip normal behavior if dying
 	if is_dying:
-		velocity = Vector2.ZERO
-		move_and_slide()
 		return
 	
+	# Update timers
+	_update_timers(delta)
+	
+	# Debug: Print state and attack cooldown every 2 seconds
+	if Engine.get_physics_frames() % 120 == 0:  # Every 2 seconds at 60 FPS
+		print("[MINOTAUR DEBUG] State: ", State.keys()[current_state], " | Can Attack: ", can_attack, " | Cooldown: ", attack_cooldown_timer, "/", current_attack_cooldown, " | HP: ", current_hp, "/", max_hp)
+	
+	# Get player info
 	if not player:
-		# Try to get player from GameManager again
-		if GameManager.player_ref:
-			player = GameManager.player_ref
-		else:
+		player = get_tree().get_first_node_in_group("player")
+		if not player:
+			velocity = Vector2.ZERO
+			move_and_slide()
 			return
 	
-	# Update attack cooldown
-	if not can_attack:
-		attack_timer += delta
-		if attack_timer >= ATTACK_COOLDOWN:
-			can_attack = true
-			attack_timer = 0.0
-	
-	# Handle attack timing (wind-up and active duration)
-	if current_state == State.ATTACK:
-		attack_windup_timer += delta
-		
-		# After wind-up, enable hitbox
-		if attack_windup_timer >= ATTACK_WINDUP and attack_active_timer == 0.0:
-			attack_active_timer = 0.001  # Start active timer
-			if hitbox_area:
-				hitbox_area.monitoring = true
-				hitbox_area.monitorable = true
-				print("Minotaur: Hitbox activated!")
-		
-		# After active duration, disable hitbox
-		if attack_active_timer > 0.0:
-			attack_active_timer += delta
-			if attack_active_timer >= ATTACK_ACTIVE_DURATION:
-				attack_active_timer = 0.0
-				if hitbox_area:
-					hitbox_area.monitoring = false
-					hitbox_area.monitorable = false
-					print("Minotaur: Hitbox deactivated!")
-	
-	# Handle charge timer
-	if current_state == State.CHARGE:
-		charge_timer += delta
-		if charge_timer >= CHARGE_DURATION:
-			# Charge finished, return to chase
-			charge_timer = 0.0
-			is_charging = false
-			change_state(State.CHASE)
-	
-	var distance_to_player = global_position.distance_to(player.global_position)
-	var can_see_player = check_line_of_sight()
+	var distance = global_position.distance_to(player.global_position)
+	var can_see = _check_line_of_sight()
 	
 	# State machine
 	match current_state:
 		State.IDLE:
-			handle_idle(delta, distance_to_player, can_see_player)
-		State.NOTICE:
-			handle_notice(delta, distance_to_player, can_see_player)
+			_handle_idle(delta, distance, can_see)
 		State.CHASE:
-			handle_chase(delta, distance_to_player, can_see_player)
-		State.ATTACK:
-			handle_attack(delta)
-		State.CHARGE:
-			handle_charge(delta, distance_to_player)
-		State.DEATH:
-			handle_death(delta)
+			_handle_chase(delta, distance, can_see)
+		State.ATTACK_AXE:
+			_handle_attack_axe(delta)
+		State.ATTACK_STOMP:
+			_handle_attack_stomp(delta)
+		State.DAMAGED:
+			_handle_damaged(delta)
+		State.RAGE_MODE:
+			_handle_rage_mode(delta, distance, can_see)
+		State.DEAD:
+			_handle_dead(delta)
 	
-	# Smooth velocity changes
+	# Apply movement
 	if delta > 0:
 		var lerp_factor = clamp(friction * delta, 0.0, 1.0)
 		velocity = velocity.lerp(desired_velocity, lerp_factor)
-	else:
-		velocity = desired_velocity
 	
-	# Handle sprite flipping
+	# Flip sprite
 	if velocity.x < 0:
 		animated_sprite.flip_h = true
 	elif velocity.x > 0:
 		animated_sprite.flip_h = false
 	
 	# Update animation
-	update_animation()
+	_update_animation()
 	
-	# Move and handle collisions
+	# Move
 	move_and_slide()
-	
-	# Check for wall collision during charge
-	if current_state == State.CHARGE and is_charging:
-		if is_on_wall():
-			# Hit a wall, stop charge and shake screen
-			is_charging = false
-			charge_timer = 0.0
-			_trigger_screen_shake(10.0, 0.3)
-			change_state(State.CHASE)
-			print("Minotaur: Charge stopped by wall!")
 
-func check_line_of_sight() -> bool:
+func _update_timers(delta: float) -> void:
+	# Attack cooldown
+	if not can_attack:
+		attack_cooldown_timer += delta
+		if attack_cooldown_timer >= current_attack_cooldown:
+			can_attack = true
+			attack_cooldown_timer = 0.0
+			print("[MINOTAUR] Attack cooldown complete - ready to attack!")
+	
+	# Damage stun
+	if is_damaged:
+		damage_timer += delta
+		if damage_timer >= DAMAGE_STUN_DURATION:
+			is_damaged = false
+			damage_timer = 0.0
+			_change_state(previous_state)
+	
+	# Roar timer (periodic angry roar every 5-6 seconds when in combat)
+	if current_state in [State.CHASE, State.RAGE_MODE, State.IDLE] and not is_dying:
+		roar_timer += delta
+		if roar_timer >= next_roar_time:
+			if roar_sound and not roar_sound.playing:
+				roar_sound.play()
+				print("[MINOTAUR] ROAR! (angry)")
+			roar_timer = 0.0
+			# Randomize next roar time
+			next_roar_time = randf_range(ROAR_INTERVAL_MIN, ROAR_INTERVAL_MAX)
+
+# Hitbox damage dealing is handled by minotaur_hitbox_host.gd
+
+func _check_line_of_sight() -> bool:
 	if not raycast or not player:
 		return false
 	raycast.target_position = player.global_position - global_position
 	raycast.force_raycast_update()
 	return not raycast.is_colliding()
 
-func change_state(new_state: State) -> void:
+func _change_state(new_state: State) -> void:
+	if current_state == new_state:
+		return
+	
+	previous_state = current_state
 	current_state = new_state
+	print("[MINOTAUR] State changed: ", State.keys()[previous_state], " -> ", State.keys()[current_state])
+	
 	match new_state:
 		State.IDLE:
 			desired_velocity = Vector2.ZERO
-		State.NOTICE:
-			desired_velocity = Vector2.ZERO
-			reaction_timer = 0.0
 		State.CHASE:
 			desired_velocity = Vector2.ZERO
-		State.ATTACK:
+		State.ATTACK_AXE:
 			desired_velocity = Vector2.ZERO
-			attack_windup_timer = 0.0
-			attack_active_timer = 0.0
-			# Ensure hitbox is disabled at start
-			if hitbox_area:
-				hitbox_area.monitoring = false
-				hitbox_area.monitorable = false
-		State.CHARGE:
-			if player:
-				charge_direction = (player.global_position - global_position).normalized()
-			is_charging = true
-			charge_timer = 0.0
-		State.DEATH:
+			can_attack = false
+			attack_cooldown_timer = 0.0
+			has_hit_player_this_attack = false  # Reset hit flag
+			_trigger_screen_shake(8.0, 0.25)
+		State.ATTACK_STOMP:
+			desired_velocity = Vector2.ZERO
+			can_attack = false
+			attack_cooldown_timer = 0.0
+			has_hit_player_this_attack = false  # Reset hit flag
+			_trigger_screen_shake(10.0, 0.3)
+		State.DAMAGED:
+			desired_velocity = Vector2.ZERO
+			is_damaged = true
+			damage_timer = 0.0
+		State.RAGE_MODE:
+			desired_velocity = Vector2.ZERO
+			_activate_rage()
+		State.DEAD:
 			desired_velocity = Vector2.ZERO
 			velocity = Vector2.ZERO
 
-func handle_idle(_delta: float, distance: float, can_see: bool) -> void:
-	"""IDLE: Wait for player to be valid and enter detection range"""
+func _handle_idle(_delta: float, distance: float, can_see: bool) -> void:
 	desired_velocity = Vector2.ZERO
 	
-	if can_see and distance <= DETECTION_RANGE:
-		change_state(State.NOTICE)
+	if can_see and distance <= AGGRO_RANGE:
+		_change_state(State.CHASE)
 
-func handle_notice(delta: float, distance: float, can_see: bool) -> void:
-	"""NOTICE: Stop and look at player for reaction time"""
-	desired_velocity = Vector2.ZERO
-	
-	# Face the player
-	if player:
-		var direction_to_player = (player.global_position - global_position).normalized()
-		if direction_to_player.x < 0:
-			animated_sprite.flip_h = true
-		elif direction_to_player.x > 0:
-			animated_sprite.flip_h = false
-	
-	# Check if player left range
-	if not can_see or distance > DETECTION_RANGE:
-		change_state(State.IDLE)
-		return
-	
-	# Update reaction timer
-	reaction_timer += delta
-	
-	# If reaction time passed, start chasing
-	if reaction_timer >= REACTION_TIME:
-		change_state(State.CHASE)
-
-func handle_chase(delta: float, distance: float, can_see: bool) -> void:
-	"""CHASE: Walk towards player"""
-	if not can_see:
-		change_state(State.IDLE)
+func _handle_chase(_delta: float, distance: float, can_see: bool) -> void:
+	if not can_see or distance > AGGRO_RANGE:
+		_change_state(State.IDLE)
 		return
 	
 	# Move towards player
 	var direction = (player.global_position - global_position).normalized()
-	var move_speed = CHARGE_SPEED if is_enraged else SPEED
-	desired_velocity = direction * move_speed
+	desired_velocity = direction * current_speed
 	
-	# Check for attack
-	if distance <= ATTACK_RANGE and can_attack:
-		change_state(State.ATTACK)
-		return
-	
-	# Check for charge (only when enraged and player is far)
-	if is_enraged and distance > CHARGE_DISTANCE_THRESHOLD:
-		if randf() < CHARGE_CHANCE:
-			change_state(State.CHARGE)
-			return
+	# Attack selection based on distance
+	if can_attack:
+		print("[MINOTAUR] In range! Distance: ", distance, " | Close: ", CLOSE_RANGE, " | Medium: ", MEDIUM_RANGE)
+		if distance <= CLOSE_RANGE:
+			# Close range: Axe attack
+			print("[MINOTAUR] Starting AXE attack!")
+			_change_state(State.ATTACK_AXE)
+		elif distance <= MEDIUM_RANGE:
+			# Medium range: Stomp attack
+			print("[MINOTAUR] Starting STOMP attack!")
+			_change_state(State.ATTACK_STOMP)
 
-func handle_attack(_delta: float) -> void:
-	"""ATTACK: Melee attack with wind-up"""
+func _handle_attack_axe(_delta: float) -> void:
 	desired_velocity = Vector2.ZERO
-	
-	# Attack timing is handled in _physics_process
-	# Wait for animation to finish to exit state
+	# Stay still during attack, hitbox controlled by minotaur_hitbox_host.gd
+	# Exit to CHASE handled in _on_animation_finished
 
-func handle_charge(delta: float, distance: float) -> void:
-	"""CHARGE: Sprint at player at high speed"""
-	if not is_charging:
+func _handle_attack_stomp(_delta: float) -> void:
+	desired_velocity = Vector2.ZERO
+	# Stay still during attack
+	# AOE damage triggered on specific animation frames
+	# Exit to CHASE handled in _on_animation_finished
+
+func _handle_damaged(_delta: float) -> void:
+	desired_velocity = Vector2.ZERO
+	# Stun handled by _update_timers
+
+func _handle_rage_mode(_delta: float, distance: float, can_see: bool) -> void:
+	# Rage mode is just a more aggressive chase state
+	if not can_see or distance > AGGRO_RANGE:
+		_change_state(State.IDLE)
 		return
 	
-	# Move in locked direction at charge speed
-	desired_velocity = charge_direction * CHARGE_SPEED
+	# Move faster towards player
+	var direction = (player.global_position - global_position).normalized()
+	desired_velocity = direction * current_speed
 	
-	# Check if we hit the player (close enough)
-	if distance <= ATTACK_RANGE:
-		# Hit player, stop charge and shake screen
-		is_charging = false
-		charge_timer = 0.0
-		_trigger_screen_shake(10.0, 0.3)
-		change_state(State.CHASE)
-		print("Minotaur: Charge hit player!")
+	# More aggressive attack selection
+	if can_attack:
+		if distance <= CLOSE_RANGE:
+			_change_state(State.ATTACK_AXE)
+		elif distance <= MEDIUM_RANGE:
+			_change_state(State.ATTACK_STOMP)
 
-func handle_death(_delta: float) -> void:
-	"""DEATH: Wait for death animation to finish"""
+func _handle_dead(_delta: float) -> void:
 	desired_velocity = Vector2.ZERO
 	velocity = Vector2.ZERO
-	# Death is handled by animation_finished signal
+	# Death handled by animation_finished
 
-func update_animation() -> void:
-	if is_dying:
+func _update_animation() -> void:
+	if current_state == State.DEAD:
+		if animated_sprite.animation != "death_animation":
+			animated_sprite.play("death_animation")
 		return
 	
 	match current_state:
 		State.IDLE:
 			if animated_sprite.animation != "idle_animation":
 				animated_sprite.play("idle_animation")
-		State.NOTICE:
-			if animated_sprite.animation != "idle_animation":
-				animated_sprite.play("idle_animation")
-		State.CHASE:
+		State.CHASE, State.RAGE_MODE:
 			if animated_sprite.animation != "walk_animation":
 				animated_sprite.play("walk_animation")
-		State.ATTACK:
+		State.ATTACK_AXE:
 			if animated_sprite.animation != "attack_animation":
 				animated_sprite.play("attack_animation")
-		State.CHARGE:
-			if animated_sprite.animation != "walk_animation":
-				animated_sprite.play("walk_animation")
-		State.DEATH:
-			if animated_sprite.animation != "death_animation":
-				animated_sprite.play("death_animation")
+		State.ATTACK_STOMP:
+			if animated_sprite.animation != "attack_stomp_animation":
+				animated_sprite.play("attack_stomp_animation")
+		State.DAMAGED:
+			if animated_sprite.animation != "damaged_animation":
+				animated_sprite.play("damaged_animation")
 
-func take_damage(amount: int, source_position: Vector2 = Vector2.ZERO) -> void:
-	"""Super Armor: Take damage but no knockback, flash red"""
-	if is_dying:
+func take_damage(amount: int, _source_position: Vector2 = Vector2.ZERO) -> void:
+	if current_state == State.DEAD:
+		return
+	
+	# Super Armor during attacks
+	if current_state == State.ATTACK_AXE or current_state == State.ATTACK_STOMP:
+		print("Minotaur: Super Armor - blocked damage during attack!")
 		return
 	
 	# Reduce HP
@@ -350,7 +356,7 @@ func take_damage(amount: int, source_position: Vector2 = Vector2.ZERO) -> void:
 	if current_hp < 0:
 		current_hp = 0
 	
-	# Emit health_changed signal for UI updates
+	# Emit signal for UI
 	health_changed.emit(current_hp, max_hp)
 	
 	print("Minotaur took ", amount, " damage. HP: ", current_hp, "/", max_hp)
@@ -358,28 +364,30 @@ func take_damage(amount: int, source_position: Vector2 = Vector2.ZERO) -> void:
 	# Spawn damage indicator
 	_spawn_damage_indicator(amount)
 	
-	# Flash Red (Super Armor visual feedback)
+	# Flash red
 	_trigger_red_flash()
 	
-	# Check for phase change (ENRAGE)
-	if current_hp <= 250 and not is_enraged:
-		enrage()
+	# Check for rage mode activation
+	if not is_enraged and current_hp <= int(max_hp * RAGE_THRESHOLD):
+		_activate_rage()
 	
-	# Handle death
+	# Enter damaged state (brief stun)
+	if current_state != State.DAMAGED:
+		_change_state(State.DAMAGED)
+	
+	# Check for death
 	if current_hp <= 0:
 		die()
-	else:
-		# If in NOTICE state and taking damage, immediately chase
-		if current_state == State.NOTICE:
-			change_state(State.CHASE)
 
-func enrage() -> void:
-	"""Phase 2: Turn red, increase speed"""
+func _activate_rage() -> void:
 	if is_enraged:
 		return
 	
 	is_enraged = true
-	print("Minotaur ENRAGED! Phase 2 activated!")
+	current_speed = RAGE_SPEED
+	current_attack_cooldown = RAGE_ATTACK_COOLDOWN
+	
+	print("MINOTAUR ENRAGED! Phase 2 activated!")
 	
 	# Visual: Turn sprite red
 	var tween = create_tween()
@@ -387,110 +395,211 @@ func enrage() -> void:
 	
 	# Screen shake for phase change
 	_trigger_screen_shake(15.0, 0.5)
-	
-	# Speed increase is handled in handle_chase (uses CHARGE_SPEED when enraged)
 
 func _trigger_red_flash() -> void:
-	"""Flash red for Super Armor visual feedback"""
-	# Set to red
+	# Flash red
 	animated_sprite.modulate = Color(1.0, 0.2, 0.2, 1.0)
 	
-	# Tween back to white (or enraged red if enraged)
+	# Tween back to normal or enraged color
 	var target_color = Color(1.0, 0.3, 0.3, 1.0) if is_enraged else Color.WHITE
 	var tween = create_tween()
 	tween.tween_property(animated_sprite, "modulate", target_color, 0.15)
 
 func _trigger_screen_shake(intensity: float, duration: float) -> void:
-	"""Trigger screen shake effect on the camera"""
 	if camera and camera.has_method("apply_shake"):
 		camera.apply_shake(intensity, duration)
 
 func _spawn_damage_indicator(amount: int) -> void:
-	"""Spawn a floating damage number indicator"""
 	var indicator = DamageIndicator.instantiate()
 	if indicator:
-		# Use DamageSpawnPoint if it exists, otherwise default to global_position
 		var spawn_position: Vector2
 		if damage_spawn_point:
 			spawn_position = damage_spawn_point.global_position
 		else:
 			spawn_position = global_position
 		
-		# Add random offset to prevent overlapping
 		spawn_position += Vector2(randf_range(-10, 10), randf_range(-10, 10))
 		
 		indicator.global_position = spawn_position
 		indicator.set_amount(amount)
 		
-		# Add to current scene so it doesn't move with the enemy
 		var current_scene = get_tree().current_scene
 		if current_scene:
 			current_scene.add_child(indicator)
 
 func die() -> void:
-	"""Death sequence"""
-	if is_dying:
+	if current_state == State.DEAD:
 		return
 	
-	is_dying = true
+	_change_state(State.DEAD)
 	print("Minotaur Boss defeated!")
 	
-	# Stop all movement
+	# Stop movement
 	velocity = Vector2.ZERO
 	desired_velocity = Vector2.ZERO
 	
-	# Disable collision and monitoring
+	# Disable collision
 	var collision_shape = get_node_or_null("CollisionShape2D")
 	if collision_shape:
 		collision_shape.set_deferred("disabled", true)
 	
-	# Disable hitbox
-	if hitbox_area:
-		hitbox_area.set_deferred("monitoring", false)
-		hitbox_area.set_deferred("monitorable", false)
-	
-	# Give player EXP (boss reward)
+	# Give player EXP
 	if player and player.has_method("gain_xp"):
 		var exp_amount = randi_range(500, 750)
 		player.gain_xp(exp_amount)
 		print("Minotaur gave player ", exp_amount, " XP")
 	
-	# Notify GameManager that boss is defeated
-	if GameManager:
+	# Notify GameManager
+	if GameManager.has_method("boss_defeated"):
 		GameManager.boss_defeated()
-	
-	# Change to death state
-	change_state(State.DEATH)
-	
-	# Play death animation
-	if animated_sprite.sprite_frames:
-		animated_sprite.sprite_frames.set_animation_loop("death_animation", false)
-	animated_sprite.play("death_animation")
 
 func _on_animation_finished() -> void:
-	"""Handle animation completion"""
-	if is_dying and animated_sprite.animation == "death_animation":
-		# Death animation finished, remove boss
-		queue_free()
+	var anim_name = animated_sprite.animation
+	
+	match anim_name:
+		"attack_animation":
+			# Axe attack finished, return to chase or rage mode
+			if is_enraged:
+				_change_state(State.RAGE_MODE)
+			else:
+				_change_state(State.CHASE)
+		
+		"attack_stomp_animation":
+			# Stomp attack finished, return to chase or rage mode
+			if is_enraged:
+				_change_state(State.RAGE_MODE)
+			else:
+				_change_state(State.CHASE)
+		
+		"damaged_animation":
+			# Damage animation finished, already handled by _update_timers
+			pass
+		
+		"death_animation":
+			# Death animation finished, remove boss
+			queue_free()
+
+func _on_animated_sprite_frame_changed() -> void:
+	var current_frame = animated_sprite.frame
+	
+	# Play slash sound on frame 1 of attack_animation
+	if animated_sprite.animation == "attack_animation" and current_frame == 1:
+		if slash_sound and not slash_sound.playing:
+			slash_sound.play()
+			print("[MINOTAUR SOUND] Slash sound played on frame 1")
+	
+	# Play stomp sound on frame 2 of attack_stomp_animation
+	if animated_sprite.animation == "attack_stomp_animation" and current_frame == 2:
+		if stomp_sound and not stomp_sound.playing:
+			stomp_sound.play()
+			print("[MINOTAUR SOUND] Stomp sound played on frame 2")
+	
+	# Fix alignment for ALL frames of attack_animation (not just frame 1)
+	if animated_sprite.animation == "attack_animation":
+		animated_sprite.offset = attack_offset_fix
+		if current_frame == 0:  # Only print once per attack to avoid spam
+			print("[MINOTAUR OFFSET] Applied offset: ", attack_offset_fix, " to attack_animation")
+	else:
+		# Reset offset for all other animations
+		if animated_sprite.offset != Vector2(0, 0):
+			animated_sprite.offset = Vector2(0, 0)
+			print("[MINOTAUR OFFSET] Reset offset to (0, 0)")
+	
+	# Handle axe attack hitbox (frame-based like skeleton)
+	if animated_sprite.animation == "attack_animation" and hitbox:
+		if current_frame in HITBOX_ACTIVE_FRAMES:
+			if not hitbox.monitoring:
+				hitbox.monitoring = true
+				hitbox.monitorable = true
+				print("[MINOTAUR HITBOX] Enabled on frame ", current_frame)
+				# Check for overlapping player hurtbox immediately
+				for area in hitbox.get_overlapping_areas():
+					_on_hitbox_area_entered(area)
+			last_attack_frame = current_frame
+		else:
+			if hitbox.monitoring:
+				hitbox.monitoring = false
+				hitbox.monitorable = false
+				print("[MINOTAUR HITBOX] Disabled (outside active frames)")
+	
+	# Trigger stomp AOE on specific frame
+	if animated_sprite.animation == "attack_stomp_animation":
+		if current_frame == 3:
+			_trigger_stomp_aoe()
+
+func _trigger_stomp_aoe() -> void:
+	# Deal damage to player if in radius
+	if not player:
 		return
 	
-	# After attack animation, return to chase/idle
-	if current_state == State.ATTACK and animated_sprite.animation == "attack_animation":
-		# Start attack cooldown
-		can_attack = false
-		attack_timer = 0.0
+	var distance_to_player = global_position.distance_to(player.global_position)
+	
+	if distance_to_player <= STOMP_RADIUS:
+		# Player is in AOE range, deal damage
+		if player.has_method("take_damage"):
+			player.take_damage(STOMP_DAMAGE)
+			print("Minotaur: Stomp AOE hit player for ", STOMP_DAMAGE, " damage!")
 		
-		# Ensure hitbox is disabled
-		if hitbox_area:
-			hitbox_area.monitoring = false
-			hitbox_area.monitorable = false
-		
-		# Return to appropriate state
-		if player:
-			var distance = global_position.distance_to(player.global_position)
-			var can_see = check_line_of_sight()
-			if can_see and distance <= DETECTION_RANGE:
-				change_state(State.CHASE)
-			else:
-				change_state(State.IDLE)
+		# Visual feedback (could add particle effect here)
+		_trigger_screen_shake(12.0, 0.4)
 
+func _on_hitbox_area_entered(area: Area2D) -> void:
+	"""Hitbox entered - minotaur deals damage to player"""
+	if not hitbox or not hitbox.monitoring:
+		return
+	
+	# Prevent multi-hit - only damage player once per attack
+	if has_hit_player_this_attack:
+		print("[MINOTAUR HITBOX] Already hit player this attack - ignoring")
+		return
+	
+	print("[MINOTAUR HITBOX] Area entered: ", area.name, " | Groups: ", area.get_groups())
+	
+	# Find player by traversing up the tree
+	var node = area
+	var player_target = null
+	
+	while node:
+		if node.is_in_group("player"):
+			player_target = node
+			break
+		if node.is_in_group("enemy") or node.is_in_group("boss"):
+			return  # Don't hit self or other enemies
+		node = node.get_parent()
+	
+	# Deal damage to player
+	if player_target and player_target.has_method("take_damage"):
+		player_target.take_damage(MINOTAUR_DAMAGE, global_position)
+		has_hit_player_this_attack = true  # Mark as hit
+		print("[MINOTAUR HITBOX] Dealt ", MINOTAUR_DAMAGE, " damage to player!")
+
+func _on_hurtbox_area_entered(area: Area2D) -> void:
+	"""Hurtbox entered - minotaur receives damage from player"""
+	print("[MINOTAUR HURTBOX] Area entered: ", area.name, " | Groups: ", area.get_groups(), " | Monitoring: ", area.monitoring)
+	
+	# CRITICAL: Only take damage if the player's attack hurtbox is monitoring (player is attacking)
+	if not area.monitoring:
+		print("[MINOTAUR HURTBOX] Player not attacking (monitoring=false) - ignoring")
+		return
+	
+	# Find the player node
+	var node = area
+	var attacker = null
+	
+	while node:
+		if node.is_in_group("player"):
+			attacker = node
+			print("[MINOTAUR HURTBOX] Found player!")
+			break
+		if node.is_in_group("enemy") or node.is_in_group("boss"):
+			print("[MINOTAUR HURTBOX] Ignoring enemy/boss hitbox")
+			return
+		node = node.get_parent()
+	
+	# Take damage from player
+	if attacker and attacker.has_method("calculate_damage"):
+		var damage = attacker.calculate_damage()
+		print("[MINOTAUR HURTBOX] Dealing ", damage, " damage to minotaur | State: ", State.keys()[current_state])
+		take_damage(damage, attacker.global_position)
+	else:
+		print("[MINOTAUR HURTBOX] No valid attacker found or missing calculate_damage method")

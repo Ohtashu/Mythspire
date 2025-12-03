@@ -1,84 +1,64 @@
-extends Control
+extends CanvasLayer
 
 ## Player HUD Manager Script
-## Manages the player HUD display with profile button and stats panel
+## Manages the player HUD display with boss UI elements
 
 # Node references using @onready
-@onready var stats_panel = $CanvasLayer/StatsPanel
-@onready var stats_label = $CanvasLayer/StatsPanel/StatsLabel
+@onready var boss_warning_label = $BossWarningLabel
+@onready var boss_health_bar = $BossHealthBar
 
 func _ready() -> void:
-	# Find profile button and connect signal
-	var profile_button = get_node_or_null("CanvasLayer/ProfileButton")
-	if profile_button:
-		if not profile_button.pressed.is_connected(_on_profile_button_pressed):
-			profile_button.pressed.connect(_on_profile_button_pressed)
-		print("PlayerHUD: Profile button signal connected")
-	else:
-		push_warning("PlayerHUD: ProfileButton not found!")
+	print("PlayerHUD: Initialized")
 	
-	# Initialize stats panel visibility
-	if stats_panel:
-		stats_panel.visible = false
-		print("PlayerHUD: StatsPanel initialized and hidden")
-	else:
-		push_warning("PlayerHUD: StatsPanel not found!")
-	
-	# Initialize stats label
-	if stats_label:
-		stats_label.text = ""
-		print("PlayerHUD: StatsLabel initialized")
-	else:
-		push_warning("PlayerHUD: StatsLabel not found!")
+	# Ensure boss UI elements are hidden initially
+	if boss_warning_label:
+		boss_warning_label.visible = false
+	if boss_health_bar:
+		boss_health_bar.visible = false
 
-func _on_profile_button_pressed() -> void:
-	"""Toggle stats panel visibility when profile button is pressed"""
-	if not stats_panel:
-		push_warning("PlayerHUD: StatsPanel not found!")
-		return
-	
-	# Toggle visibility
-	stats_panel.visible = not stats_panel.visible
-	print("PlayerHUD: StatsPanel visibility toggled to ", stats_panel.visible)
-	
-	# Update stats display if panel becomes visible
-	if stats_panel.visible:
-		update_stats()
+# ===== BOSS FIGHT UI FUNCTIONS =====
 
-func update_stats() -> void:
-	"""Update the stats label with current player information"""
-	if not stats_label:
-		push_warning("PlayerHUD: StatsLabel not found!")
+func show_boss_warning() -> void:
+	"""Flash the boss warning label"""
+	if not boss_warning_label:
+		push_warning("PlayerHUD: BossWarningLabel not found!")
 		return
 	
-	# Get player reference from GameManager or search
-	var player = GameManager.player_ref
-	if not player:
-		player = get_tree().get_first_node_in_group("player")
+	boss_warning_label.visible = true
 	
-	if not player:
-		stats_label.text = "No player found"
-		print("PlayerHUD: Warning - Player not found!")
+	# Create flashing tween animation
+	var tween = create_tween()
+	tween.set_loops(6)  # Flash 6 times
+	tween.tween_property(boss_warning_label, "modulate:a", 0.3, 0.3)
+	tween.tween_property(boss_warning_label, "modulate:a", 1.0, 0.3)
+	
+	# Hide after animation completes
+	await tween.finished
+	boss_warning_label.visible = false
+	print("PlayerHUD: Boss warning displayed")
+
+func update_boss_health(current_hp: int, max_hp: int) -> void:
+	"""Update boss health bar and make it visible"""
+	if not boss_health_bar:
+		push_warning("PlayerHUD: BossHealthBar not found!")
 		return
 	
-	# Format stats text with player information
-	var stats_text = ""
+	# Make health bar visible if it's not already
+	if not boss_health_bar.visible:
+		boss_health_bar.visible = true
+		print("PlayerHUD: Boss health bar now visible")
 	
-	if "level" in player:
-		stats_text += "Level: %d\n" % player.level
+	# Update health bar values
+	boss_health_bar.max_value = max_hp
+	boss_health_bar.value = current_hp
 	
-	if "current_health" in player and "max_health" in player:
-		stats_text += "Health: %d/%d\n" % [player.current_health, player.max_health]
+	print("PlayerHUD: Boss health updated - ", current_hp, "/", max_hp)
+
+func hide_boss_health_bar() -> void:
+	"""Hide the boss health bar"""
+	if not boss_health_bar:
+		push_warning("PlayerHUD: BossHealthBar not found!")
+		return
 	
-	if "damage" in player:
-		stats_text += "Damage: %d\n" % player.damage
-	
-	if "defense" in player:
-		stats_text += "Defense: %d\n" % player.defense
-	
-	if "current_xp" in player:
-		stats_text += "XP: %d\n" % player.current_xp
-	
-	# Update the label text
-	stats_label.text = stats_text
-	print("PlayerHUD: Stats updated")
+	boss_health_bar.visible = false
+	print("PlayerHUD: Boss health bar hidden")

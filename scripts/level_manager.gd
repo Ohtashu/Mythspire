@@ -31,6 +31,25 @@ func _ready() -> void:
 			push_error("LevelManager: Player node not found! Expected path: $Player")
 		if not level_container:
 			push_error("LevelManager: LevelContainer node not found! Expected path: $LevelContainer")
+	
+	# Setup UI references for boss fight system
+	var ui_layer = get_node_or_null("player_hud")
+	var music_player = get_node_or_null("MusicPlayer")
+	var sfx_player = get_node_or_null("SFXPlayer")
+	
+	if ui_layer and music_player and sfx_player:
+		if GameManager:
+			GameManager.setup_ui_references(ui_layer, music_player, sfx_player)
+			print("LevelManager: Setup UI references for boss fight system")
+		else:
+			push_error("LevelManager: GameManager autoload not found!")
+	else:
+		if not ui_layer:
+			push_warning("LevelManager: player_hud not found! Boss UI may not work properly")
+		if not music_player:
+			push_warning("LevelManager: MusicPlayer not found! Boss music may not work properly")
+		if not sfx_player:
+			push_warning("LevelManager: SFXPlayer not found! Boss SFX may not work properly")
 
 func setup_y_sorting() -> void:
 	# Ensure this node is a Node2D (YSort extends Node2D)

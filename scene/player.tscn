@@ -3623,11 +3623,10 @@ script = ExtResource("1_fvtld")
 script = ExtResource("2_34jf3")
 
 [node name="hurtbox" parent="player_interaction" instance=ExtResource("3_34jf3")]
-visible = false
 monitoring = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="player_interaction/hurtbox"]
-position = Vector2(1, 0.25)
+position = Vector2(0, 13)
 shape = SubResource("RectangleShape2D_34jf3")
 debug_color = Color(0.93103385, 0.16389221, 0.5186505, 0.41960785)
 
@@ -3666,7 +3665,6 @@ volume_db = -3.0
 pitch_scale = 0.5
 
 [node name="player_hitbox" type="Node2D" parent="."]
-visible = false
 
 [node name="hitbox" parent="player_hitbox" instance=ExtResource("14_u7b46")]
 

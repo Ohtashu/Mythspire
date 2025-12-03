@@ -28,7 +28,7 @@ func _ready() -> void:
 	xp_to_next_level = 100
 	
 	# Initialize base stats (these are modified by leveling)
-	base_damage = 3
+	base_damage = 100  # Starting damage (increased by +2 for early game)
 	base_defense = 0
 	base_max_health = 20
 	base_speed = BASE_SPEED
@@ -119,7 +119,7 @@ const MAX_STAT_LEVEL: int = 50  # Maximum upgrade level for each stat (hard cap)
 
 # Base stats (from leveling)
 var base_max_health: int = 20
-var base_damage: int = 3
+var base_damage: int = 5  # Starting damage (increased by +2 for early game)
 var base_defense: int = 0
 var base_speed: float = 80.0
 var crit_damage: float = 2.0  # Crit damage multiplier (e.g., 2.0x = 200% damage on crit, affected by STR)
@@ -498,7 +498,8 @@ func _check_overlapping_enemies() -> void:
 	var overlapping_areas = hurtbox.get_overlapping_areas()
 	
 	for area in overlapping_areas:
-		if area.is_in_group("hitbox"):
+		# Check if this is an enemy hitbox (their attack) or enemy_hurtbox (their damage receiver)
+		if area.is_in_group("hitbox") or area.is_in_group("enemy_hurtbox"):
 			# IMPORTANT: Check if this is the player's own hitbox - if so, ignore it
 			var node_check = area
 			var is_player_hitbox = false
@@ -512,22 +513,26 @@ func _check_overlapping_enemies() -> void:
 			if is_player_hitbox:
 				continue  # Skip player's own hitbox
 			
-			# Find the enemy node
-			var node = area
-			var enemy = null
-			while node:
-				if node.has_method("take_knockback"):
-					enemy = node
-					break
-				node = node.get_parent()
-			
-			# Apply knockback and damage if enemy found
-			if enemy and enemy.has_method("take_knockback"):
-				var knockback_direction = (enemy.global_position - global_position).normalized()
-				enemy.take_knockback(knockback_direction)
-				# Deal damage to enemy (use damage variable instead of constant)
-				if enemy.has_method("take_damage"):
-					enemy.take_damage(damage, global_position)
+		# Find the enemy or boss node
+		var node = area
+		var enemy = null
+		while node:
+			# Check for regular enemies (have knockback) or bosses (no knockback)
+			if node.has_method("take_knockback") or node.is_in_group("boss"):
+				enemy = node
+				break
+			node = node.get_parent()
+		
+		# Apply knockback if enemy has it (regular enemies)
+		if enemy and enemy.has_method("take_knockback"):
+			var knockback_direction = (enemy.global_position - global_position).normalized()
+			enemy.take_knockback(knockback_direction)
+		
+		# Deal damage to enemy or boss
+		if enemy and enemy.has_method("take_damage"):
+			var final_damage = calculate_damage()
+			enemy.take_damage(final_damage, global_position)
+			print("Player hit enemy/boss for ", final_damage, " damage")
 
 func take_damage(amount: int, source_pos: Vector2 = Vector2.ZERO) -> void:
 	# Don't take damage if already dying or invincible
@@ -706,15 +711,17 @@ func level_up() -> void:
 	xp_to_next_level = int(xp_to_next_level * 1.5)
 	
 	# Stat Buffs (base stats from leveling):
-	# Increase base_max_health by 5
-	base_max_health += 5
+	# Increase base_max_health by 7 (5 base + 2 bonus)
+	base_max_health += 7
 	
-	# Increase base_damage by 1
-	base_damage += 1
+	# Increase base_damage by 3 (1 base + 2 bonus)
+	base_damage += 3
 	
-	# Increase base_defense by 1 ONLY if the new level is an Even number (2, 4, 6, etc)
+	# Increase base_defense by 3 on even levels, +2 on odd levels
 	if level % 2 == 0:
-		base_defense += 1
+		base_defense += 3  # 1 base + 2 bonus
+	else:
+		base_defense += 2  # +2 bonus even on odd levels
 	
 	# Recalculate derived stats from base + attributes
 	apply_stat_formulas()
@@ -748,6 +755,22 @@ func apply_stat_formulas() -> void:
 	# Ensure current health doesn't exceed new max
 	if current_health > max_health:
 		current_health = max_health
+
+# Calculate damage with critical hit chance
+func calculate_damage() -> int:
+	var base_dmg = damage
+	var crit_chance = get_crit_chance()
+	
+	# Roll for critical hit (crit_chance is a percentage)
+	var roll = randf() * 100.0
+	if roll < crit_chance:
+		# Critical hit!
+		var crit_dmg = int(base_dmg * crit_damage)
+		print("CRITICAL HIT! ", crit_dmg, " damage (", crit_damage, "x multiplier)")
+		return crit_dmg
+	else:
+		# Normal hit
+		return base_dmg
 
 # Get cost for upgrading a stat based on current level
 func get_stat_upgrade_cost(stat_level: int) -> int:

@@ -1,31 +1,34 @@
-[gd_scene load_steps=45 format=3 uid="uid://bje5xms12rl4o"]
+[gd_scene load_steps=48 format=3 uid="uid://bje5xms12rl4o"]
 
-[ext_resource type="Script" uid="uid://cjxwj5wocp6pj" path="res://minotaur.gd" id="1_iwayf"]
+[ext_resource type="Script" uid="uid://bqamyqdg42ywh" path="res://scripts/minotaur.gd" id="1_iwayf"]
 [ext_resource type="Texture2D" uid="uid://dljt136af21kj" path="res://assets/Enemy/Sprites/Minotaur_A.png" id="2_hnoqg"]
 [ext_resource type="PackedScene" uid="uid://c07tnhdi15v2q" path="res://hitbox/hitbox.tscn" id="3_ue3cg"]
 [ext_resource type="PackedScene" uid="uid://dwk5rywdtot7d" path="res://hurtbox/hurtbox.tscn" id="4_je2f3"]
+[ext_resource type="AudioStream" uid="uid://uwbgsq05ywla" path="res://audio/Enemy/boss/sword_slice.wav" id="5_je2f3"]
+[ext_resource type="AudioStream" uid="uid://du3mauupgu348" path="res://audio/Enemy/boss/Retro Impact Punch 07.wav" id="6_gnai1"]
+[ext_resource type="AudioStream" uid="uid://dj07nwmjcpa7d" path="res://audio/Enemy/boss/Retro Roar LoFi 08.wav" id="7_12phr"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_gnai1"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_iwayf"]
 atlas = ExtResource("2_hnoqg")
 region = Rect2(0, 400, 80, 80)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_12phr"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_hnoqg"]
 atlas = ExtResource("2_hnoqg")
 region = Rect2(80, 400, 80, 80)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_dpegb"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_ue3cg"]
 atlas = ExtResource("2_hnoqg")
 region = Rect2(160, 400, 80, 80)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_xy1yp"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_je2f3"]
 atlas = ExtResource("2_hnoqg")
 region = Rect2(240, 400, 80, 80)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_qthix"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_gnai1"]
 atlas = ExtResource("2_hnoqg")
 region = Rect2(320, 400, 80, 80)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_geeh1"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_12phr"]
 atlas = ExtResource("2_hnoqg")
 region = Rect2(400, 400, 80, 80)
 
@@ -153,24 +156,24 @@ region = Rect2(400, 80, 80, 80)
 animations = [{
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_iwayf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hnoqg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ue3cg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_je2f3")
+}, {
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_gnai1")
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_12phr")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_dpegb")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_xy1yp")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_qthix")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_geeh1")
 }],
-"loop": true,
+"loop": false,
 "name": &"attack_animation",
 "speed": 8.0
 }, {
@@ -216,7 +219,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_2ktps")
 }],
-"loop": true,
+"loop": false,
 "name": &"damaged_animation",
 "speed": 8.0
 }, {
@@ -239,7 +242,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_umxln")
 }],
-"loop": true,
+"loop": false,
 "name": &"death_animation",
 "speed": 8.0
 }, {
@@ -262,7 +265,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_ggppv")
 }],
-"loop": true,
+"loop": false,
 "name": &"idle_animation",
 "speed": 8.0
 }, {
@@ -285,7 +288,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_10b0l")
 }],
-"loop": true,
+"loop": false,
 "name": &"walk_animation",
 "speed": 8.0
 }]
@@ -300,14 +303,16 @@ size = Vector2(36, 73)
 radius = 84.00595
 
 [node name="Minotaur" type="CharacterBody2D"]
+collision_layer = 2
 script = ExtResource("1_iwayf")
+attack_offset_fix = Vector2(13, 16)
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
-position = Vector2(-1, -81)
+position = Vector2(1, -81)
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_o2dlm")
-animation = &"death_animation"
-frame_progress = 0.28157115
+animation = &"attack_animation"
+autoplay = "idle_animation"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0, -18)
@@ -316,11 +321,21 @@ shape = SubResource("CircleShape2D_6ji6f")
 [node name="hitbox" parent="." instance=ExtResource("3_ue3cg")]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="hitbox"]
-position = Vector2(0, -36.5)
+position = Vector2(-1, -40)
 shape = SubResource("RectangleShape2D_jsu3t")
 
 [node name="hurtbox" parent="." instance=ExtResource("4_je2f3")]
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="hurtbox"]
 position = Vector2(0, -47)
 shape = SubResource("CircleShape2D_cvb1e")
+
+[node name="slash" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_je2f3")
+
+[node name="stomp" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_gnai1")
+
+[node name="roar" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("7_12phr")

@@ -14,6 +14,9 @@ extends Node2D
 @export var respawn_time: float = 30.0
 
 var alive_count = 0
+var total_kills = 0  # Track total enemies killed (for boss spawn in dungeon_floor_2)
+var boss_spawned = false  # Flag to prevent spawning boss multiple times
+const KILLS_TO_SPAWN_BOSS = 6  # Kill 6 enemies to spawn boss in dungeon_floor_2
 var spawn_points: Array[Vector2] = []  # Auto-detected spawn points
 var player_ref: Node = null  # Player reference from GameManager
 var dungeon_map: Node = null  # Parent node (the dungeon map)
@@ -143,27 +146,49 @@ func _on_enemy_died() -> void:
 		return
 	
 	alive_count -= 1
-	print("EnemySpawner: Enemy died! alive_count: ", alive_count)
+	total_kills += 1  # Increment total kill counter
+	print("EnemySpawner: Enemy died! alive_count: ", alive_count, " | total_kills: ", total_kills)
+	
+	# Check if we're in dungeon_floor2 and should spawn boss
+	if dungeon_map and "dungeon_floor2" in dungeon_map.name.to_lower():
+		if total_kills >= KILLS_TO_SPAWN_BOSS and not boss_spawned:
+			print("EnemySpawner: ", total_kills, " enemies killed in dungeon_floor2! Triggering boss spawn...")
+			boss_spawned = true
+			# Stop normal spawning
+			if timer and timer.is_inside_tree():
+				timer.stop()
+			# Call deferred to ensure everything is ready
+			call_deferred("_trigger_boss_spawn")
+			return
+	
+	# Normal respawn logic for all maps (if all enemies defeated)
 	if alive_count == 0:
 		print("EnemySpawner: All enemies defeated!")
 		
-		# Check if this is dungeon_floor_2 - if so, spawn the boss
-		if dungeon_map and "dungeon_floor_2" in dungeon_map.name:
-			print("EnemySpawner: All enemies defeated in dungeon_floor_2! Triggering boss spawn...")
-			# Call deferred to ensure everything is ready
-			call_deferred("_trigger_boss_spawn")
+		# Debug: Print the actual map name
+		if dungeon_map:
+			print("EnemySpawner: Current map name: '", dungeon_map.name, "' (lowercase: '", dungeon_map.name.to_lower(), "')")
 		else:
-			# Normal spawn cycle for other levels
-			print("EnemySpawner: Not dungeon_floor_2 (map name: ", dungeon_map.name if dungeon_map else "null", "), resuming spawn cycle")
+			print("EnemySpawner: dungeon_map is null!")
+		
+		# Normal spawn cycle (skip if boss already spawned in dungeon_floor2)
+		if not boss_spawned:
+			print("EnemySpawner: Not dungeon_floor2 or boss not spawned yet (map name: ", str(dungeon_map.name) if dungeon_map else "null", "), resuming spawn cycle")
 			if timer and timer.is_inside_tree():
 				timer.start()
 
 func _trigger_boss_spawn() -> void:
 	"""Trigger boss spawn for dungeon_floor_2"""
+	print("========================================")
 	print("EnemySpawner: _trigger_boss_spawn() called")
+	print("EnemySpawner: Current map: ", str(dungeon_map.name) if dungeon_map else "null")
+	print("========================================")
 	if GameManager:
 		print("EnemySpawner: GameManager found, calling start_boss_sequence()")
+		print("EnemySpawner: Boss scene path: res://scene/minotaur.tscn")
+		print("EnemySpawner: Boss spawn position: BossSpawnPos")
 		GameManager.start_boss_sequence("res://scene/minotaur.tscn", "BossSpawnPos")
+		print("EnemySpawner: Boss sequence triggered!")
 	else:
 		push_error("EnemySpawner: GameManager not found!")
 
