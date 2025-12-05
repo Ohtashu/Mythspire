@@ -99,6 +99,21 @@ func _load_level_deferred(scene_path: String, spawn_tag: String) -> void:
 	else:
 		push_warning("GameManager: Could not find LevelManager to setup Y-sorting for new map!")
 	
+	# Step D.6: Setup camera limits for the new map
+	if level_manager and "setup_camera_limits" in level_manager:
+		# Find the first TileMapLayer or TileMap in the new map
+		var tilemap_layer = null
+		for child in new_map.get_children():
+			if child is TileMapLayer or child.get_class() == "TileMap":
+				tilemap_layer = child
+				break
+		
+		if tilemap_layer:
+			level_manager.setup_camera_limits(tilemap_layer, player_ref)
+			print("GameManager: Camera limits configured for new map")
+		else:
+			push_warning("GameManager: No TileMapLayer found in new map for camera limits!")
+	
 	# Step E (Teleport): Find Marker2D and teleport player
 	if spawn_tag != "":
 		var spawn_point = new_map.find_child(spawn_tag, true, false)

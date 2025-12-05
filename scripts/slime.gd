@@ -3,6 +3,7 @@ extends CharacterBody2D
 const DamageIndicator = preload("res://scene/DamageIndicator.tscn")
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var hitbox_area: Area2D = $hitbox/hitbox
 @onready var sfx_footstep: AudioStreamPlayer2D = get_node_or_null("slime_walk")
 @onready var sfx_get_damaged: AudioStreamPlayer2D = get_node_or_null("slime_get_damaged")
 @onready var damage_spawn_point: Marker2D = get_node_or_null("DamageSpawnPoint")
@@ -79,8 +80,19 @@ func _ready() -> void:
 	# Store original scale for squash effect
 	original_scale = animated_sprite.scale
 	
+	# Y-sorting depth optimization: Enable Y-sorting for proper depth perception
+	# This ensures enemies sort correctly based on their Y position
+	y_sort_enabled = true
+	
 	# Task 1: Fix physics dragging - set collision_mask to only collide with walls (layer 1), not player (layer 4)
 	collision_mask = 1  # Only collide with walls, not player
+	
+	# Setup hitbox for contact damage (disabled by default)
+	if hitbox_area:
+		hitbox_area.monitoring = false  # Disabled by default, only enable during lunge
+		hitbox_area.monitorable = true
+		hitbox_area.area_entered.connect(_on_hitbox_area_entered)
+		print("Slime: Hitbox setup, will enable during lunge attack")
 
 func _physics_process(delta: float) -> void:
 	# Skip normal behavior if dying
@@ -214,17 +226,22 @@ func apply_separation_force() -> void:
 		return  # Don't separate during these states
 	
 	var separation = Vector2.ZERO
+	# Include both enemies and bosses for separation
 	var enemies = get_tree().get_nodes_in_group("enemies")
+	var bosses = get_tree().get_nodes_in_group("boss")
+	var all_entities = enemies + bosses
 	
-	for enemy in enemies:
-		if enemy == self:
+	for entity in all_entities:
+		if entity == self:
 			continue
-		if not is_instance_valid(enemy):
+		if not is_instance_valid(entity):
+			continue
+		if not entity is CharacterBody2D:
 			continue
 		
-		var distance = global_position.distance_to(enemy.global_position)
+		var distance = global_position.distance_to(entity.global_position)
 		if distance < SEPARATION_DISTANCE and distance > 0:
-			var direction = (global_position - enemy.global_position).normalized()
+			var direction = (global_position - entity.global_position).normalized()
 			var force = (SEPARATION_DISTANCE - distance) / SEPARATION_DISTANCE
 			separation += direction * force * SEPARATION_FORCE
 	
@@ -292,6 +309,7 @@ func handle_prepare(delta: float, distance: float) -> void:
 	# Transition to LUNGE after prepare duration
 	if prepare_timer >= PREPARE_DURATION:
 		if distance <= LUNGE_RANGE:
+			hitbox_area.monitoring = true  # Enable hitbox for lunge attack
 			change_state(State.LUNGE)
 		else:
 			# Player moved away, go back to IDLE
@@ -309,10 +327,12 @@ func handle_lunge(_delta: float) -> void:
 	
 	# If we've gone past the target or moved far enough, start recovery
 	if distance_to_target > 50.0 or velocity.length() < LUNGE_SPEED * 0.5:
+		hitbox_area.monitoring = false  # Disable hitbox when lunge ends
 		change_state(State.RECOVERY)
 	
 	# Check collision - if we hit something, start recovery
 	if get_slide_collision_count() > 0:
+		hitbox_area.monitoring = false  # Disable hitbox when lunge ends
 		change_state(State.RECOVERY)
 
 func handle_recovery(delta: float, distance: float, can_see: bool) -> void:
@@ -352,54 +372,44 @@ func take_knockback(direction: Vector2) -> void:
 	knockback_timer = KNOCKBACK_DURATION
 	velocity = direction * KNOCKBACK_FORCE
 
-func update_animation(_delta: float) -> void:
-	# Don't change animation if dying
-	if is_dying:
-		return
-	
-	# Don't change animation if damaged animation is playing
-	if is_playing_damaged:
-		return
-	
-	if current_state == State.HURT:
-		return  # Let hurt animation play
-	
-	if current_state == State.NOTICE:
-		# Play idle animation while noticing (looking at player)
-		if animated_sprite.animation != "slime_idle":
-			animated_sprite.play("slime_idle")
-		return
-	
-	if current_state == State.PREPARE:
-		# Keep idle animation during prepare
-		if animated_sprite.animation != "slime_idle":
-			animated_sprite.play("slime_idle")
-		return
-	
-	if current_state == State.LUNGE:
-		# Play attack animation during lunge
-		if animated_sprite.animation != "slime_attack":
-			animated_sprite.play("slime_attack")
-		return
-	
-	if current_state == State.RECOVERY:
-		# Play idle during recovery
-		if animated_sprite.animation != "slime_idle":
-			animated_sprite.play("slime_idle")
-		return
+# Animation name constants (optimized)
+const ANIM_IDLE = "slime_idle"
+const ANIM_WALK = "slime_walk"
+const ANIM_ATTACK = "slime_attack"
+const ANIM_DAMAGED = "slime_damaged"
+const ANIM_DIE = "slime_die"
 
-	# IDLE state: Check if moving (velocity length > small threshold)
-	if velocity.length() > 0.1:
-		if animated_sprite.animation != "slime_walk":
-			animated_sprite.play("slime_walk")
-		# Play footstep sound when moving (with cooldown to avoid spam)
-		if sfx_footstep and not sfx_footstep.playing:
-			# Only play footstep sound occasionally while moving
-			if randf() < 0.15:  # 15% chance per frame when moving (slime is squishier)
-				sfx_footstep.play()
-	else:
-		if animated_sprite.animation != "slime_idle":
-			animated_sprite.play("slime_idle")
+func update_animation(_delta: float) -> void:
+	# Don't change animation if dying or damaged animation playing
+	if is_dying or is_playing_damaged:
+		return
+	
+	# Early return for hurt state
+	if current_state == State.HURT:
+		return
+	
+	# Get current animation (cached)
+	var current_anim = animated_sprite.animation
+	
+	# State-based animation (optimized)
+	match current_state:
+		State.NOTICE, State.PREPARE, State.RECOVERY:
+			if current_anim != ANIM_IDLE:
+				animated_sprite.play(ANIM_IDLE)
+		State.LUNGE:
+			if current_anim != ANIM_ATTACK:
+				animated_sprite.play(ANIM_ATTACK)
+		State.IDLE:
+			# Check movement
+			if velocity.length() > 0.1:
+				if current_anim != ANIM_WALK:
+					animated_sprite.play(ANIM_WALK)
+				# Play footstep sound occasionally (optimized)
+				if sfx_footstep and not sfx_footstep.playing and randf() < 0.15:
+					sfx_footstep.play()
+			else:
+				if current_anim != ANIM_IDLE:
+					animated_sprite.play(ANIM_IDLE)
 
 func _on_frame_changed() -> void:
 	# Track death animation completion
@@ -525,7 +535,6 @@ func die() -> void:
 		collision_shape.set_deferred("disabled", true)
 	
 	# Disable hitbox and hurtbox
-	var hitbox_area = get_node_or_null("hitbox/hitbox")
 	if hitbox_area:
 		hitbox_area.set_deferred("monitoring", false)
 		hitbox_area.set_deferred("monitorable", false)
@@ -595,3 +604,22 @@ func deal_damage() -> void:
 		if player.has_method("take_damage"):
 			# Task 2: Pass slime's position for knockback
 			player.take_damage(SLIME_DAMAGE, global_position)
+
+func _on_hitbox_area_entered(area: Area2D) -> void:
+	"""Hitbox entered - slime deals contact damage to player"""
+	# Find player by traversing up the tree
+	var node = area
+	var player_target = null
+	
+	while node:
+		if node.is_in_group("player"):
+			player_target = node
+			break
+		if node.is_in_group("enemy") or node.is_in_group("boss"):
+			return  # Don't hit self or other enemies
+		node = node.get_parent()
+	
+	# Deal damage to player
+	if player_target and player_target.has_method("take_damage"):
+		player_target.take_damage(SLIME_DAMAGE, global_position)
+		print("Slime: Dealt contact damage to player!")

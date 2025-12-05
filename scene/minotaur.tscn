@@ -297,15 +297,15 @@ animations = [{
 radius = 18.027756
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jsu3t"]
-size = Vector2(36, 73)
+size = Vector2(36, 78)
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_cvb1e"]
 radius = 84.00595
 
 [node name="Minotaur" type="CharacterBody2D"]
-collision_layer = 2
+collision_layer = 4
 script = ExtResource("1_iwayf")
-attack_offset_fix = Vector2(13, 16)
+attack_offset_fix = Vector2(15, 16)
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 position = Vector2(1, -81)
@@ -321,14 +321,13 @@ shape = SubResource("CircleShape2D_6ji6f")
 [node name="hitbox" parent="." instance=ExtResource("3_ue3cg")]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="hitbox"]
-position = Vector2(-1, -40)
+position = Vector2(2, -39)
 shape = SubResource("RectangleShape2D_jsu3t")
 
 [node name="hurtbox" parent="." instance=ExtResource("4_je2f3")]
-visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="hurtbox"]
-position = Vector2(0, -47)
+position = Vector2(5, -47)
 shape = SubResource("CircleShape2D_cvb1e")
 
 [node name="slash" type="AudioStreamPlayer2D" parent="."]

@@ -1,7 +1,9 @@
 extends CharacterBody2D
 class_name Player
 
-@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+# CRITICAL: Visuals pivot for proper directional flipping
+@onready var visuals: Node2D = $Visuals
+@onready var animated_sprite: AnimatedSprite2D = $Visuals/AnimatedSprite2D
 @onready var walk_sound: AudioStreamPlayer2D = get_node_or_null("WalkSound")
 @onready var attack_sound: AudioStreamPlayer2D = get_node_or_null("sfx_attack")
 @onready var attack_voice: AudioStreamPlayer2D = get_node_or_null("player_attack_voice")
@@ -9,8 +11,9 @@ class_name Player
 @onready var unequip_sound: AudioStreamPlayer2D = get_node_or_null("sfx_unequip")
 @onready var hurt_sound: AudioStreamPlayer2D = get_node_or_null("player_damaged")
 @onready var level_sound_effect: AudioStreamPlayer2D = get_node_or_null("level_sound_effect")
-@onready var hurtbox: Area2D = $player_interaction/hurtbox
-@onready var player_interaction: Node2D = $player_interaction
+@onready var hurtbox: Area2D = $Visuals/player_interaction/hurtbox
+@onready var player_interaction: Node2D = $Visuals/player_interaction
+@onready var player_hitbox: Area2D = $Visuals/player_hitbox/hitbox
 
 func _ready() -> void:
 	animated_sprite.animation_finished.connect(_on_animation_finished)
@@ -39,7 +42,7 @@ func _ready() -> void:
 	
 	# Step 3: Restore health from GameManager if transitioning from another scene
 	if GameManager and GameManager.player_health > 0:
-		# Restore saved health (but don't exceed current max_health if player leveled up)
+		# Restore saved health (but do3n't exceed current max_health if player leveled up)
 		current_health = min(GameManager.player_health, max_health)
 		print("Player: Restored health from GameManager - ", current_health, "/", max_health)
 	else:
@@ -290,11 +293,17 @@ func _on_frame_changed() -> void:
 	if is_moving and walk_sound and (animated_sprite.frame == 1 or animated_sprite.frame == 5):
 		walk_sound.play()
 	if is_attacking and animated_sprite.frame == 4:
-		# Enable hurtbox monitoring on attack frame
+		# Enable attack hitbox monitoring on attack frame
+		if player_hitbox:
+			player_hitbox.monitoring = true
+		# Enable hurtbox monitoring to detect enemies
 		hurtbox.monitoring = true
 		# Check for overlapping areas when monitoring turns on
 		# (in case enemy was already inside when monitoring activated)
 		_check_overlapping_enemies()
+	elif player_hitbox:
+		# Disable attack hitbox when not on attack frame
+		player_hitbox.monitoring = false
 
 func update_animation(direction: Vector2, _delta: float, running: bool) -> void:
 	# Don't change animation while dying, attacking, or stunned

@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=4 uid="uid://bppju3ncchirq"]
+[gd_scene load_steps=23 format=4 uid="uid://bppju3ncchirq"]
 
 [ext_resource type="Texture2D" uid="uid://pa587awus45n" path="res://assets/Dungeon/Sprites/mainlevbuild.png" id="1_1y4jr"]
 [ext_resource type="Texture2D" uid="uid://bbek3ag5f6g5v" path="res://assets/Dungeon/Sprites/decorative.png" id="2_xicvp"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://dax3bcldjh67a" path="res://scene/torch_animated.tscn" id="5_mmrrv"]
 [ext_resource type="PackedScene" uid="uid://c54qf2fe3xfpq" path="res://scene/animated_candle.tscn" id="6_vjcih"]
 [ext_resource type="PackedScene" uid="uid://cxwmoxwjutte8" path="res://scene/enemy_spawner.tscn" id="7_vjcih"]
+[ext_resource type="FontFile" uid="uid://dghwpyh5twng5" path="res://fonts/DeadRevolverGame.ttf" id="8_rkxlt"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1y4jr"]
 texture = ExtResource("1_1y4jr")
@@ -7414,3 +7415,34 @@ position = Vector2(167, 172)
 position = Vector2(80, 87)
 
 [node name="Timer" type="Timer" parent="EnemySpawner"]
+
+[node name="Move_label" type="Label" parent="."]
+offset_left = 407.0
+offset_top = 47.0
+offset_right = 449.0
+offset_bottom = 89.0
+theme_override_fonts/font = ExtResource("8_rkxlt")
+theme_override_font_sizes/font_size = 8
+text = "     [W]
+[A] [S] [D]
+ TO MOVE"
+
+[node name="attack_controls" type="Label" parent="."]
+offset_left = 586.0
+offset_top = 46.0
+offset_right = 652.0
+offset_bottom = 67.0
+theme_override_fonts/font = ExtResource("8_rkxlt")
+theme_override_font_sizes/font_size = 8
+text = "[Left Click] 
+	TO ATTACK"
+
+[node name="aTTACK" type="Label" parent="."]
+offset_left = 596.0
+offset_top = 89.0
+offset_right = 636.0
+offset_bottom = 112.0
+theme_override_fonts/font = ExtResource("8_rkxlt")
+theme_override_font_sizes/font_size = 8
+text = "     [1]
+WEAPON"

@@ -20,8 +20,8 @@
 [ext_resource type="AudioStream" uid="uid://b7l3dotueilbe" path="res://audio/player/hurt .mp3" id="18_v4iqv"]
 [ext_resource type="AudioStream" uid="uid://cxyecimhikvh" path="res://audio/player/power_up.wav" id="19_42h83"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_34jf3"]
-size = Vector2(14, 25.5)
+[sub_resource type="CircleShape2D" id="CircleShape2D_ihjo1"]
+radius = 5.0
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_if8ub"]
 atlas = ExtResource("2_hp4bs")
@@ -3607,8 +3607,8 @@ animations = [{
 "speed": 10.0
 }]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_ihjo1"]
-radius = 5.0
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_34jf3"]
+size = Vector2(14, 25.5)
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_j4wxg"]
 radius = 6.324555
@@ -3616,29 +3616,9 @@ radius = 6.324555
 [node name="Player" type="CharacterBody2D"]
 z_index = 1
 y_sort_enabled = true
-collision_layer = 4
+collision_layer = 3
+collision_mask = 1
 script = ExtResource("1_fvtld")
-
-[node name="player_interaction" type="Node2D" parent="."]
-script = ExtResource("2_34jf3")
-
-[node name="hurtbox" parent="player_interaction" instance=ExtResource("3_34jf3")]
-monitoring = false
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="player_interaction/hurtbox"]
-position = Vector2(0, 13)
-shape = SubResource("RectangleShape2D_34jf3")
-debug_color = Color(0.93103385, 0.16389221, 0.5186505, 0.41960785)
-
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
-y_sort_enabled = true
-texture_filter = 1
-position = Vector2(-1.4901161e-08, -11)
-rotation = -0.006530262
-scale = Vector2(1.25, 1.171875)
-sprite_frames = SubResource("SpriteFrames_ml7e8")
-animation = &"attack_spear_down"
-autoplay = "idle_down"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 y_sort_enabled = true
@@ -3664,15 +3644,6 @@ stream = ExtResource("10_ml7e8")
 volume_db = -3.0
 pitch_scale = 0.5
 
-[node name="player_hitbox" type="Node2D" parent="."]
-
-[node name="hitbox" parent="player_hitbox" instance=ExtResource("14_u7b46")]
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="player_hitbox/hitbox"]
-position = Vector2(1, -6.9999995)
-rotation = -2.5988975
-shape = SubResource("CircleShape2D_j4wxg")
-
 [node name="player_attack_voice" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("17_4ja17")
 
@@ -3681,3 +3652,36 @@ stream = ExtResource("18_v4iqv")
 
 [node name="level_sound_effect" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("19_42h83")
+
+[node name="Visuals" type="Node2D" parent="."]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Visuals"]
+y_sort_enabled = true
+texture_filter = 1
+position = Vector2(-1.4901161e-08, -11)
+rotation = -0.006530262
+scale = Vector2(1.25, 1.171875)
+sprite_frames = SubResource("SpriteFrames_ml7e8")
+animation = &"attack_spear_down"
+autoplay = "idle_down"
+
+[node name="player_interaction" type="Node2D" parent="Visuals"]
+script = ExtResource("2_34jf3")
+
+[node name="hurtbox" parent="Visuals/player_interaction" instance=ExtResource("3_34jf3")]
+collision_layer = 3
+monitoring = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Visuals/player_interaction/hurtbox"]
+position = Vector2(0, 7)
+shape = SubResource("RectangleShape2D_34jf3")
+debug_color = Color(0.93103385, 0.16389221, 0.5186505, 0.41960785)
+
+[node name="player_hitbox" type="Node2D" parent="Visuals"]
+
+[node name="hitbox" parent="Visuals/player_hitbox" instance=ExtResource("14_u7b46")]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Visuals/player_hitbox/hitbox"]
+position = Vector2(1, -6.9999995)
+rotation = -2.5988975
+shape = SubResource("CircleShape2D_j4wxg")

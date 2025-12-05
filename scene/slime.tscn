@@ -251,8 +251,8 @@ radius = 5.0
 [sub_resource type="CircleShape2D" id="CircleShape2D_u4oce"]
 radius = 20.0
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_h24r4"]
-radius = 13.0
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_yn13l"]
+size = Vector2(12, 25)
 
 [node name="Slime" type="CharacterBody2D" groups=["enemies"]]
 y_sort_enabled = true
@@ -260,6 +260,7 @@ collision_layer = 2
 script = ExtResource("1_slime")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+light_mask = 2
 y_sort_enabled = true
 position = Vector2(0, -22)
 sprite_frames = SubResource("SpriteFrames_7y485")
@@ -268,6 +269,7 @@ frame = 3
 frame_progress = 0.87486804
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+visible = false
 y_sort_enabled = true
 position = Vector2(0, -5)
 shape = SubResource("CircleShape2D_2002g")
@@ -283,14 +285,12 @@ position = Vector2(0, -9)
 shape = SubResource("CircleShape2D_u4oce")
 
 [node name="hitbox" type="Node2D" parent="."]
-visible = false
 
 [node name="hitbox" parent="hitbox" instance=ExtResource("3_q8ldp")]
-visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="hitbox/hitbox"]
-position = Vector2(0, -9)
-shape = SubResource("CircleShape2D_h24r4")
+position = Vector2(1, -10.5)
+shape = SubResource("RectangleShape2D_yn13l")
 
 [node name="slime_walk" type="AudioStreamPlayer2D" parent="."]
 

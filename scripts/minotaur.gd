@@ -27,16 +27,16 @@ const RAGE_SPEED: float = 70.0
 var current_speed: float = BASE_SPEED
 const MINOTAUR_DAMAGE: int = 8
 
-# Combat Ranges
-const AGGRO_RANGE: float = 250.0
-const CLOSE_RANGE: float = 60.0
-const MEDIUM_RANGE: float = 120.0
+# Combat Ranges (optimized)
+const AGGRO_RANGE: float = 200.0  # Reduced from 250 - more focused aggro
+const CLOSE_RANGE: float = 55.0  # Slightly reduced for tighter axe attacks
+const MEDIUM_RANGE: float = 100.0  # Reduced from 120 - more precise stomp range
 
-# Attack System
+# Attack System (optimized)
 var can_attack: bool = true
 var attack_cooldown_timer: float = 0.0
-const NORMAL_ATTACK_COOLDOWN: float = 1.5
-const RAGE_ATTACK_COOLDOWN: float = 0.9
+const NORMAL_ATTACK_COOLDOWN: float = 1.2  # Reduced from 1.5 - faster attacks
+const RAGE_ATTACK_COOLDOWN: float = 0.8  # Reduced from 0.9 - more aggressive
 var current_attack_cooldown: float = NORMAL_ATTACK_COOLDOWN
 
 # Rage System
@@ -47,18 +47,24 @@ const RAGE_THRESHOLD: float = 0.4  # 40% HP
 var is_damaged: bool = false
 var damage_timer: float = 0.0
 const DAMAGE_STUN_DURATION: float = 0.2
+var damage_cooldown_timer: float = 0.0
+const DAMAGE_COOLDOWN: float = 0.3  # Prevent taking damage multiple times from same attack
+var last_damage_source: Node = null  # Track last damage source to prevent double hits
 
 # Stomp Attack
 const STOMP_RADIUS: float = 100.0
 const STOMP_DAMAGE: int = 12
 
 # Hitbox Frame Control (for axe attack)
-const HITBOX_ACTIVE_FRAMES: Array = [3, 4]  # Frames where hitbox is active
+const HITBOX_ACTIVE_FRAMES: Array = [2, 3, 4, 5]  # Frames where hitbox is active (expanded for reliability)
 var last_attack_frame: int = -1
 var has_hit_player_this_attack: bool = false  # Prevent multi-hit
 
 # Animation Frame Offset Fix
-@export var attack_offset_fix: Vector2 = Vector2(0, 0)  # Adjust in Inspector for attack_animation frame 1
+# If the sprite moves out of center during attack_animation, set this to compensate
+# The offset property adjusts where the sprite is drawn without changing its position
+# Positive values move sprite right/down, negative values move left/up
+@export var attack_offset_fix: Vector2 = Vector2(0, 0)  # Adjust in Inspector for attack_animation
 
 # Roar System
 var roar_timer: float = 0.0
@@ -94,6 +100,10 @@ func _ready() -> void:
 	# Connect signals
 	animated_sprite.animation_finished.connect(_on_animation_finished)
 	animated_sprite.frame_changed.connect(_on_animated_sprite_frame_changed)
+	
+	# Y-sorting depth optimization: Enable Y-sorting for proper depth perception
+	# This ensures the boss sorts correctly based on its Y position
+	y_sort_enabled = true
 	
 	# Setup hurtbox (receives damage from player)
 	if hurtbox:
@@ -133,9 +143,9 @@ func _physics_process(delta: float) -> void:
 	# Update timers
 	_update_timers(delta)
 	
-	# Debug: Print state and attack cooldown every 2 seconds
-	if Engine.get_physics_frames() % 120 == 0:  # Every 2 seconds at 60 FPS
-		print("[MINOTAUR DEBUG] State: ", State.keys()[current_state], " | Can Attack: ", can_attack, " | Cooldown: ", attack_cooldown_timer, "/", current_attack_cooldown, " | HP: ", current_hp, "/", max_hp)
+	# Debug: Print state and attack cooldown every 5 seconds (optimized - less spam)
+	if Engine.get_physics_frames() % 300 == 0:  # Every 5 seconds at 60 FPS
+		print("[MINOTAUR DEBUG] State: ", State.keys()[current_state], " | Can Attack: ", can_attack, " | HP: ", current_hp, "/", max_hp)
 	
 	# Get player info
 	if not player:
@@ -165,6 +175,9 @@ func _physics_process(delta: float) -> void:
 		State.DEAD:
 			_handle_dead(delta)
 	
+	# Bug Fix: Apply separation force to prevent stacking with other enemies
+	_apply_separation_force()
+	
 	# Apply movement
 	if delta > 0:
 		var lerp_factor = clamp(friction * delta, 0.0, 1.0)
@@ -179,8 +192,27 @@ func _physics_process(delta: float) -> void:
 	# Update animation
 	_update_animation()
 	
+	# Store collision count before moving
+	var was_colliding = get_slide_collision_count() > 0
+	
 	# Move
 	move_and_slide()
+	
+	# Bug Fix: Prevent minotaur from being dragged by player
+	if player and was_colliding:
+		var dist_to_player = global_position.distance_to(player.global_position)
+		if dist_to_player < 30.0:  # Very close to player
+			for i in range(get_slide_collision_count()):
+				var collision = get_slide_collision(i)
+				var collider = collision.get_collider()
+				# If we collided with the player, prevent being pushed
+				if collider == player or collider.is_in_group("player"):
+					# Reset position to prevent being dragged
+					# Only do this if we're not in attack state
+					if current_state != State.ATTACK_AXE and current_state != State.ATTACK_STOMP:
+						var push_back = (global_position - player.global_position).normalized() * 3.0
+						global_position += push_back
+					break
 
 func _update_timers(delta: float) -> void:
 	# Attack cooldown
@@ -199,6 +231,13 @@ func _update_timers(delta: float) -> void:
 			damage_timer = 0.0
 			_change_state(previous_state)
 	
+	# Damage cooldown (prevent double damage from same attack)
+	if damage_cooldown_timer > 0.0:
+		damage_cooldown_timer -= delta
+		if damage_cooldown_timer <= 0.0:
+			damage_cooldown_timer = 0.0
+			last_damage_source = null  # Reset after cooldown
+	
 	# Roar timer (periodic angry roar every 5-6 seconds when in combat)
 	if current_state in [State.CHASE, State.RAGE_MODE, State.IDLE] and not is_dying:
 		roar_timer += delta
@@ -210,7 +249,39 @@ func _update_timers(delta: float) -> void:
 			# Randomize next roar time
 			next_roar_time = randf_range(ROAR_INTERVAL_MIN, ROAR_INTERVAL_MAX)
 
-# Hitbox damage dealing is handled by minotaur_hitbox_host.gd
+# Separation constants
+const SEPARATION_FORCE: float = 80.0  # Force to push enemies apart
+const SEPARATION_DISTANCE: float = 50.0  # Distance to start separating
+
+func _apply_separation_force() -> void:
+	"""Apply separation force to prevent minotaur from stacking with other enemies"""
+	if current_state == State.DAMAGED or current_state == State.DEAD:
+		return  # Don't separate during these states
+	
+	var separation = Vector2.ZERO
+	
+	# Get all enemies and bosses
+	var enemies = get_tree().get_nodes_in_group("enemies")
+	var bosses = get_tree().get_nodes_in_group("boss")
+	var all_entities = enemies + bosses
+	
+	for entity in all_entities:
+		if entity == self:
+			continue
+		if not is_instance_valid(entity):
+			continue
+		if not entity is CharacterBody2D:
+			continue
+		
+		var distance = global_position.distance_to(entity.global_position)
+		if distance < SEPARATION_DISTANCE and distance > 0:
+			var direction = (global_position - entity.global_position).normalized()
+			var force = (SEPARATION_DISTANCE - distance) / SEPARATION_DISTANCE
+			separation += direction * force * SEPARATION_FORCE
+	
+	# Apply separation as additional velocity to desired_velocity
+	if separation.length() > 0:
+		desired_velocity += separation * get_physics_process_delta_time()
 
 func _check_line_of_sight() -> bool:
 	if not raycast or not player:
@@ -319,36 +390,43 @@ func _handle_dead(_delta: float) -> void:
 	velocity = Vector2.ZERO
 	# Death handled by animation_finished
 
+# Animation name constants (optimized)
+const ANIM_IDLE = "idle_animation"
+const ANIM_WALK = "walk_animation"
+const ANIM_ATTACK = "attack_animation"
+const ANIM_STOMP = "attack_stomp_animation"
+const ANIM_DAMAGED = "damaged_animation"
+const ANIM_DEATH = "death_animation"
+
 func _update_animation() -> void:
 	if current_state == State.DEAD:
-		if animated_sprite.animation != "death_animation":
-			animated_sprite.play("death_animation")
+		if animated_sprite.animation != ANIM_DEATH:
+			animated_sprite.play(ANIM_DEATH)
 		return
 	
+	# Get current animation (cached)
+	var current_anim = animated_sprite.animation
+	
+	# State-based animation (optimized)
 	match current_state:
 		State.IDLE:
-			if animated_sprite.animation != "idle_animation":
-				animated_sprite.play("idle_animation")
+			if current_anim != ANIM_IDLE:
+				animated_sprite.play(ANIM_IDLE)
 		State.CHASE, State.RAGE_MODE:
-			if animated_sprite.animation != "walk_animation":
-				animated_sprite.play("walk_animation")
+			if current_anim != ANIM_WALK:
+				animated_sprite.play(ANIM_WALK)
 		State.ATTACK_AXE:
-			if animated_sprite.animation != "attack_animation":
-				animated_sprite.play("attack_animation")
+			if current_anim != ANIM_ATTACK:
+				animated_sprite.play(ANIM_ATTACK)
 		State.ATTACK_STOMP:
-			if animated_sprite.animation != "attack_stomp_animation":
-				animated_sprite.play("attack_stomp_animation")
+			if current_anim != ANIM_STOMP:
+				animated_sprite.play(ANIM_STOMP)
 		State.DAMAGED:
-			if animated_sprite.animation != "damaged_animation":
-				animated_sprite.play("damaged_animation")
+			if current_anim != ANIM_DAMAGED:
+				animated_sprite.play(ANIM_DAMAGED)
 
 func take_damage(amount: int, _source_position: Vector2 = Vector2.ZERO) -> void:
 	if current_state == State.DEAD:
-		return
-	
-	# Super Armor during attacks
-	if current_state == State.ATTACK_AXE or current_state == State.ATTACK_STOMP:
-		print("Minotaur: Super Armor - blocked damage during attack!")
 		return
 	
 	# Reduce HP
@@ -457,75 +535,83 @@ func _on_animation_finished() -> void:
 	var anim_name = animated_sprite.animation
 	
 	match anim_name:
-		"attack_animation":
+		ANIM_ATTACK:
+			# Reset offset when attack animation finishes
+			animated_sprite.offset = Vector2.ZERO
 			# Axe attack finished, return to chase or rage mode
-			if is_enraged:
-				_change_state(State.RAGE_MODE)
-			else:
-				_change_state(State.CHASE)
+			_change_state(State.RAGE_MODE if is_enraged else State.CHASE)
 		
-		"attack_stomp_animation":
+		ANIM_STOMP:
 			# Stomp attack finished, return to chase or rage mode
-			if is_enraged:
-				_change_state(State.RAGE_MODE)
-			else:
-				_change_state(State.CHASE)
+			_change_state(State.RAGE_MODE if is_enraged else State.CHASE)
 		
-		"damaged_animation":
+		ANIM_DAMAGED:
 			# Damage animation finished, already handled by _update_timers
 			pass
 		
-		"death_animation":
+		ANIM_DEATH:
 			# Death animation finished, remove boss
 			queue_free()
 
 func _on_animated_sprite_frame_changed() -> void:
 	var current_frame = animated_sprite.frame
 	
-	# Play slash sound on frame 1 of attack_animation
-	if animated_sprite.animation == "attack_animation" and current_frame == 1:
+	# Play slash sound on frame 1 of attack_animation (optimized)
+	if animated_sprite.animation == ANIM_ATTACK and current_frame == 1:
 		if slash_sound and not slash_sound.playing:
 			slash_sound.play()
-			print("[MINOTAUR SOUND] Slash sound played on frame 1")
 	
-	# Play stomp sound on frame 2 of attack_stomp_animation
-	if animated_sprite.animation == "attack_stomp_animation" and current_frame == 2:
+	# Play stomp sound on frame 2 of attack_stomp_animation (optimized)
+	if animated_sprite.animation == ANIM_STOMP and current_frame == 2:
 		if stomp_sound and not stomp_sound.playing:
 			stomp_sound.play()
-			print("[MINOTAUR SOUND] Stomp sound played on frame 2")
 	
-	# Fix alignment for ALL frames of attack_animation (not just frame 1)
-	if animated_sprite.animation == "attack_animation":
+	# Fix alignment for attack_animation - use offset property (optimized)
+	if animated_sprite.animation == ANIM_ATTACK:
 		animated_sprite.offset = attack_offset_fix
-		if current_frame == 0:  # Only print once per attack to avoid spam
-			print("[MINOTAUR OFFSET] Applied offset: ", attack_offset_fix, " to attack_animation")
-	else:
-		# Reset offset for all other animations
-		if animated_sprite.offset != Vector2(0, 0):
-			animated_sprite.offset = Vector2(0, 0)
-			print("[MINOTAUR OFFSET] Reset offset to (0, 0)")
+	elif animated_sprite.offset != Vector2.ZERO:
+		animated_sprite.offset = Vector2.ZERO
 	
-	# Handle axe attack hitbox (frame-based like skeleton)
-	if animated_sprite.animation == "attack_animation" and hitbox:
+	# Handle axe attack hitbox (frame-based, optimized)
+	if animated_sprite.animation == ANIM_ATTACK and hitbox:
 		if current_frame in HITBOX_ACTIVE_FRAMES:
 			if not hitbox.monitoring:
 				hitbox.monitoring = true
 				hitbox.monitorable = true
-				print("[MINOTAUR HITBOX] Enabled on frame ", current_frame)
-				# Check for overlapping player hurtbox immediately
-				for area in hitbox.get_overlapping_areas():
-					_on_hitbox_area_entered(area)
+			
+			# Check for damage on every active frame
+			_deal_axe_damage()
 			last_attack_frame = current_frame
 		else:
 			if hitbox.monitoring:
 				hitbox.monitoring = false
 				hitbox.monitorable = false
-				print("[MINOTAUR HITBOX] Disabled (outside active frames)")
 	
 	# Trigger stomp AOE on specific frame
-	if animated_sprite.animation == "attack_stomp_animation":
-		if current_frame == 3:
-			_trigger_stomp_aoe()
+	if animated_sprite.animation == ANIM_STOMP and current_frame == 3:
+		_trigger_stomp_aoe()
+
+func _deal_axe_damage() -> void:
+	"""Deal axe attack damage - called on active frames for reliable hit detection"""
+	if not player:
+		return
+	
+	if current_state != State.ATTACK_AXE:
+		return
+	
+	# Prevent multi-hit
+	if has_hit_player_this_attack:
+		return
+	
+	# Check distance-based hit (optimized range)
+	var attack_range = CLOSE_RANGE * 1.3  # Optimized range multiplier
+	var distance_to_player = global_position.distance_to(player.global_position)
+	
+	if distance_to_player <= attack_range:
+		# Player is hit if they're within attack range
+		if player.has_method("take_damage"):
+			player.take_damage(MINOTAUR_DAMAGE, global_position)
+			has_hit_player_this_attack = true
 
 func _trigger_stomp_aoe() -> void:
 	# Deal damage to player if in radius
@@ -544,16 +630,13 @@ func _trigger_stomp_aoe() -> void:
 		_trigger_screen_shake(12.0, 0.4)
 
 func _on_hitbox_area_entered(area: Area2D) -> void:
-	"""Hitbox entered - minotaur deals damage to player"""
+	"""Hitbox entered - minotaur deals damage to player (optimized)"""
 	if not hitbox or not hitbox.monitoring:
 		return
 	
 	# Prevent multi-hit - only damage player once per attack
 	if has_hit_player_this_attack:
-		print("[MINOTAUR HITBOX] Already hit player this attack - ignoring")
 		return
-	
-	print("[MINOTAUR HITBOX] Area entered: ", area.name, " | Groups: ", area.get_groups())
 	
 	# Find player by traversing up the tree
 	var node = area
@@ -570,16 +653,12 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 	# Deal damage to player
 	if player_target and player_target.has_method("take_damage"):
 		player_target.take_damage(MINOTAUR_DAMAGE, global_position)
-		has_hit_player_this_attack = true  # Mark as hit
-		print("[MINOTAUR HITBOX] Dealt ", MINOTAUR_DAMAGE, " damage to player!")
+		has_hit_player_this_attack = true
 
 func _on_hurtbox_area_entered(area: Area2D) -> void:
-	"""Hurtbox entered - minotaur receives damage from player"""
-	print("[MINOTAUR HURTBOX] Area entered: ", area.name, " | Groups: ", area.get_groups(), " | Monitoring: ", area.monitoring)
-	
+	"""Hurtbox entered - minotaur receives damage from player (optimized)"""
 	# CRITICAL: Only take damage if the player's attack hurtbox is monitoring (player is attacking)
 	if not area.monitoring:
-		print("[MINOTAUR HURTBOX] Player not attacking (monitoring=false) - ignoring")
 		return
 	
 	# Find the player node
@@ -589,17 +668,22 @@ func _on_hurtbox_area_entered(area: Area2D) -> void:
 	while node:
 		if node.is_in_group("player"):
 			attacker = node
-			print("[MINOTAUR HURTBOX] Found player!")
 			break
 		if node.is_in_group("enemy") or node.is_in_group("boss"):
-			print("[MINOTAUR HURTBOX] Ignoring enemy/boss hitbox")
 			return
 		node = node.get_parent()
 	
-	# Take damage from player
-	if attacker and attacker.has_method("calculate_damage"):
-		var damage = attacker.calculate_damage()
-		print("[MINOTAUR HURTBOX] Dealing ", damage, " damage to minotaur | State: ", State.keys()[current_state])
-		take_damage(damage, attacker.global_position)
-	else:
-		print("[MINOTAUR HURTBOX] No valid attacker found or missing calculate_damage method")
+	# Prevent double damage from same attack
+	if attacker:
+		# Check if we're on damage cooldown from this same attacker
+		if damage_cooldown_timer > 0.0 and last_damage_source == attacker:
+			return
+		
+		# Take damage from player
+		if attacker.has_method("calculate_damage"):
+			var damage = attacker.calculate_damage()
+			take_damage(damage, attacker.global_position)
+			
+			# Set damage cooldown to prevent double hits
+			damage_cooldown_timer = DAMAGE_COOLDOWN
+			last_damage_source = attacker

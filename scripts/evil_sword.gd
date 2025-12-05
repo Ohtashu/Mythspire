@@ -80,6 +80,10 @@ func _ready() -> void:
 	# Store original Y position for bobbing
 	original_y = global_position.y
 	
+	# Y-sorting depth optimization: Enable Y-sorting for proper depth perception
+	# This ensures enemies sort correctly based on their Y position
+	y_sort_enabled = true
+	
 	# Task 2: Fix physics dragging - ensure collision mask ignores player (layer 4) but keeps walls (layer 1)
 	# Player is on layer 4, walls are on layer 1
 	set_collision_mask_value(1, true)   # Collide with walls (layer 1)
@@ -210,22 +214,23 @@ func change_state(new_state: State) -> void:
 			desired_velocity = Vector2.ZERO  # Stop all movement during hurt state
 
 func apply_separation_force() -> void:
-	"""Apply separation force to prevent enemies from stacking"""
+	"""Apply separation force to prevent enemies from stacking (optimized)"""
 	if current_state == State.HURT or current_state == State.DASH:
 		return  # Don't separate during these states
 	
 	var separation = Vector2.ZERO
+	# Include both enemies and bosses for separation
 	var enemies = get_tree().get_nodes_in_group("enemies")
+	var bosses = get_tree().get_nodes_in_group("boss")
+	var all_entities = enemies + bosses
 	
-	for enemy in enemies:
-		if enemy == self:
-			continue
-		if not is_instance_valid(enemy):
+	for entity in all_entities:
+		if entity == self or not is_instance_valid(entity) or not entity is CharacterBody2D:
 			continue
 		
-		var distance = global_position.distance_to(enemy.global_position)
+		var distance = global_position.distance_to(entity.global_position)
 		if distance < SEPARATION_DISTANCE and distance > 0:
-			var direction = (global_position - enemy.global_position).normalized()
+			var direction = (global_position - entity.global_position).normalized()
 			var force = (SEPARATION_DISTANCE - distance) / SEPARATION_DISTANCE
 			separation += direction * force * SEPARATION_FORCE
 	
@@ -339,37 +344,36 @@ func take_knockback(direction: Vector2) -> void:
 	knockback_timer = KNOCKBACK_DURATION
 	velocity = direction * KNOCKBACK_FORCE
 
-func update_animation(_delta: float) -> void:
-	# Don't change animation if dying
-	if is_dying:
-		return
-	
-	# Don't change animation if damaged animation is playing
-	if is_playing_damaged:
-		return
-	
-	if current_state == State.HURT:
-		return  # Let hurt animation play
-	
-	if current_state == State.DASH:
-		# Play attack animation during dash
-		if animated_sprite.animation != "sword_attack":
-			animated_sprite.play("sword_attack")
-		return
-	
-	if current_state == State.ORBIT:
-		# Play walking animation while orbiting
-		if animated_sprite.animation != "sword_walking":
-			animated_sprite.play("sword_walking")
-		return
-	
-	if current_state == State.NOTICE:
-		# Play idle animation while noticing (looking at player)
-		if animated_sprite.animation != "sword_idle":
-			animated_sprite.play("sword_idle")
-		return
+# Animation name constants (optimized)
+const ANIM_IDLE = "sword_idle"
+const ANIM_WALKING = "sword_walking"
+const ANIM_ATTACK = "sword_attack"
+const ANIM_DAMAGED = "sword_damaged"
+const ANIM_DEATH = "sword_death"
 
-	# IDLE state
+func update_animation(_delta: float) -> void:
+	# Don't change animation if dying or damaged animation playing
+	if is_dying or is_playing_damaged:
+		return
+	
+	# Early return for hurt state
+	if current_state == State.HURT:
+		return
+	
+	# Get current animation (cached)
+	var current_anim = animated_sprite.animation
+	
+	# State-based animation (optimized)
+	match current_state:
+		State.DASH:
+			if current_anim != ANIM_ATTACK:
+				animated_sprite.play(ANIM_ATTACK)
+		State.ORBIT:
+			if current_anim != ANIM_WALKING:
+				animated_sprite.play(ANIM_WALKING)
+		State.NOTICE, State.IDLE:
+			if current_anim != ANIM_IDLE:
+				animated_sprite.play(ANIM_IDLE)
 	if animated_sprite.animation != "sword_idle":
 		animated_sprite.play("sword_idle")
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3 uid="uid://dfofqtd7gepqe"]
+[gd_scene load_steps=18 format=3 uid="uid://dfofqtd7gepqe"]
 
 [ext_resource type="Texture2D" uid="uid://ndg78du0dg13" path="res://GUI/main_menu/Gemini_Generated_Image_qx9ciwqx9ciwqx9c.png" id="1_dclss"]
 [ext_resource type="FontFile" uid="uid://ob526hfhuufw" path="res://fonts/DeadRevolverDisplay.ttf" id="2_hmxu4"]
@@ -7,7 +7,6 @@
 [ext_resource type="Texture2D" uid="uid://dp6cc8o70ifkh" path="res://GUI/main_menu/ButtonDigital_Highlighted.png" id="4_1o50l"]
 [ext_resource type="Script" uid="uid://7megopsi7opo" path="res://scripts/start_game.gd" id="5_cht4j"]
 [ext_resource type="FontFile" uid="uid://dghwpyh5twng5" path="res://fonts/DeadRevolverGame.ttf" id="6_os2d6"]
-[ext_resource type="Script" uid="uid://ma1o85k5s0re" path="res://scripts/options.gd" id="7_v0h3m"]
 [ext_resource type="Script" uid="uid://dv4vlhe2or7gt" path="res://scripts/quit.gd" id="8_sra1m"]
 [ext_resource type="Texture2D" uid="uid://cn3ehcapiorqb" path="res://GUI/main_menu/B9F62D70-9F97-45A4-80FD-17E2F5424A72-removebg-preview.png" id="9_unisd"]
 [ext_resource type="AudioStream" uid="uid://m2shb1xragr" path="res://audio/main_menu/02 - Title Theme.ogg" id="10_bgmusic"]
@@ -22,14 +21,6 @@ region = Rect2(8.223388, 2.979477, 35.61725, 10.590617)
 [sub_resource type="AtlasTexture" id="AtlasTexture_ictww"]
 atlas = ExtResource("3_hmxu4")
 region = Rect2(166.14876, 1.1378384, 31.645767, 15.570726)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_cht4j"]
-atlas = ExtResource("3_ictww")
-region = Rect2(7.9712305, 3.092257, 35.93245, 10.793034)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_hmxu4"]
-atlas = ExtResource("4_1o50l")
-region = Rect2(8.188332, 2.9747524, 35.736996, 11.066286)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_os2d6"]
 atlas = ExtResource("3_ictww")
@@ -112,36 +103,12 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_fonts/font = ExtResource("6_os2d6")
 text = "start game"
 
-[node name="options" type="TextureButton" parent="."]
-layout_mode = 0
-offset_left = 17.0
-offset_top = 216.0
-offset_right = 150.0
-offset_bottom = 257.0
-texture_pressed = SubResource("AtlasTexture_cht4j")
-texture_hover = SubResource("AtlasTexture_hmxu4")
-ignore_texture_size = true
-stretch_mode = 0
-script = ExtResource("7_v0h3m")
-
-[node name="Label" type="Label" parent="options"]
-layout_mode = 0
-offset_left = 14.0
-offset_top = 10.0
-offset_right = 128.0
-offset_bottom = 33.0
-theme_override_colors/font_color = Color(1, 0.972549, 0.90588236, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_fonts/font = ExtResource("6_os2d6")
-text = "options"
-
 [node name="quit" type="TextureButton" parent="."]
 layout_mode = 0
 offset_left = 17.0
-offset_top = 258.0
+offset_top = 196.0
 offset_right = 150.0
-offset_bottom = 299.0
+offset_bottom = 237.0
 texture_pressed = SubResource("AtlasTexture_os2d6")
 texture_hover = SubResource("AtlasTexture_dclss")
 ignore_texture_size = true
@@ -150,10 +117,10 @@ script = ExtResource("8_sra1m")
 
 [node name="Label" type="Label" parent="quit"]
 layout_mode = 0
-offset_left = 14.0
-offset_top = 10.0
-offset_right = 128.0
-offset_bottom = 33.0
+offset_left = 42.0
+offset_top = 12.0
+offset_right = 90.0
+offset_bottom = 31.0
 theme_override_colors/font_color = Color(1, 0.972549, 0.90588236, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
@@ -162,7 +129,7 @@ text = "quit"
 
 [node name="B9f62d709f9745a480fd17e2f5424a72RemovebgPreview" type="Sprite2D" parent="."]
 position = Vector2(461, 219.00002)
-scale = Vector2(0.50980395, 0.52205884)
+scale = Vector2(0.7, 0.717)
 texture = ExtResource("9_unisd")
 
 [node name="menu_background_music" type="AudioStreamPlayer2D" parent="."]

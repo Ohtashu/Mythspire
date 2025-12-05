@@ -295,11 +295,11 @@ animations = [{
 "speed": 8.0
 }]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_5nrdo"]
-radius = 7.0
+[sub_resource type="CircleShape2D" id="CircleShape2D_jafab"]
+radius = 5.0249376
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_bhurr"]
-radius = 8.0
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jafab"]
+size = Vector2(16, 29)
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_lm2m6"]
 radius = 24.331055
@@ -314,13 +314,12 @@ y_sort_enabled = true
 position = Vector2(0, -31)
 scale = Vector2(1.375, 1.3749999)
 sprite_frames = SubResource("SpriteFrames_s0cfw")
-animation = &"skeleton_damaged"
-frame_progress = 0.66754574
+animation = &"skeleton_idle"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 y_sort_enabled = true
-position = Vector2(0, -7)
-shape = SubResource("CircleShape2D_5nrdo")
+position = Vector2(1, -4)
+shape = SubResource("CircleShape2D_jafab")
 
 [node name="sfx_get_hit" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("3_d7bxq")
@@ -329,7 +328,6 @@ stream = ExtResource("3_d7bxq")
 stream = ExtResource("4_2di4e")
 
 [node name="skeleton_hitbox" type="Node2D" parent="."]
-visible = false
 position = Vector2(1, -9)
 script = ExtResource("3_bhurr")
 
@@ -337,12 +335,11 @@ script = ExtResource("3_bhurr")
 position = Vector2(-1, 9)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="skeleton_hitbox/hitbox"]
-position = Vector2(1, -9)
-shape = SubResource("CircleShape2D_bhurr")
+position = Vector2(2, -12.5)
+shape = SubResource("RectangleShape2D_jafab")
 debug_color = Color(0.9867055, 0.66856134, 0, 0.41960785)
 
 [node name="skeleton_hurtbox" type="Node2D" parent="."]
-visible = false
 script = ExtResource("7_2di4e")
 
 [node name="hurtbox" type="Area2D" parent="skeleton_hurtbox"]
@@ -352,6 +349,7 @@ monitoring = false
 monitorable = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="skeleton_hurtbox/hurtbox"]
+visible = false
 position = Vector2(5.1186705, 12.601556)
 rotation = 2.2694483
 shape = SubResource("CircleShape2D_lm2m6")

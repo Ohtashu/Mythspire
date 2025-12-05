@@ -80,6 +80,10 @@ func _ready() -> void:
 	# Initialize health
 	current_health = max_health
 	
+	# Y-sorting depth optimization: Enable Y-sorting for proper depth perception
+	# This ensures enemies sort correctly based on their Y position
+	y_sort_enabled = true
+	
 	# Task 1: Fix physics dragging - set collision_mask to only collide with walls (layer 1), not player (layer 4)
 	collision_mask = 1  # Only collide with walls, not player
 
@@ -220,17 +224,22 @@ func apply_separation_force() -> void:
 		return  # Don't separate during these states
 	
 	var separation = Vector2.ZERO
+	# Include both enemies and bosses for separation
 	var enemies = get_tree().get_nodes_in_group("enemies")
+	var bosses = get_tree().get_nodes_in_group("boss")
+	var all_entities = enemies + bosses
 	
-	for enemy in enemies:
-		if enemy == self:
+	for entity in all_entities:
+		if entity == self:
 			continue
-		if not is_instance_valid(enemy):
+		if not is_instance_valid(entity):
+			continue
+		if not entity is CharacterBody2D:
 			continue
 		
-		var distance = global_position.distance_to(enemy.global_position)
+		var distance = global_position.distance_to(entity.global_position)
 		if distance < SEPARATION_DISTANCE and distance > 0:
-			var direction = (global_position - enemy.global_position).normalized()
+			var direction = (global_position - entity.global_position).normalized()
 			var force = (SEPARATION_DISTANCE - distance) / SEPARATION_DISTANCE
 			separation += direction * force * SEPARATION_FORCE
 	
@@ -359,6 +368,14 @@ func take_knockback(direction: Vector2) -> void:
 
 
 
+# Animation name constants (optimized - cached to avoid string comparisons)
+const ANIM_IDLE = "skeleton_idle"
+const ANIM_MOVE = "skeleton_move"
+const ANIM_DEFEND = "skeleton_defend"
+const ANIM_ATTACK = "skeleton_attack"
+const ANIM_DAMAGED = "skeleton_damaged"
+const ANIM_DEATH = "skeleton_death"
+
 func update_animation(_delta: float) -> void:
 	# Don't change animation if dying
 	if is_dying:
@@ -368,36 +385,37 @@ func update_animation(_delta: float) -> void:
 	if is_playing_damaged:
 		return
 	
-	if current_state == State.ATTACK:
-		return  # Let attack animation finish
-	
-	if current_state == State.HURT:
-		return  # Let hurt animation play
-	
-	if current_state == State.NOTICE:
-		# Play idle animation while noticing (looking at player)
-		if animated_sprite.animation != "skeleton_idle":
-			animated_sprite.play("skeleton_idle")
+	# Early returns for states that lock animation
+	if current_state == State.ATTACK or current_state == State.HURT:
 		return
-
-	if is_defending or current_state == State.BLOCK:
-		animated_sprite.play("skeleton_defend")
-		return
-
-	# Check if moving (use small threshold to avoid floating point issues)
-	if velocity.length() > 0.1:
-		# Only change to move animation if not already playing it
-		if animated_sprite.animation != "skeleton_move":
-			animated_sprite.play("skeleton_move")
-		# Play footstep sound when moving (with cooldown to avoid spam)
-		if sfx_footstep and not sfx_footstep.playing:
-			# Only play footstep sound occasionally while moving
-			if randf() < 0.1:  # 10% chance per frame when moving
-				sfx_footstep.play()
-	else:
-		# Only change to idle animation if not already playing it
-		if animated_sprite.animation != "skeleton_idle":
-			animated_sprite.play("skeleton_idle")
+	
+	# Get current animation name (cached)
+	var current_anim = animated_sprite.animation
+	
+	# State-based animation selection (optimized)
+	match current_state:
+		State.NOTICE:
+			if current_anim != ANIM_IDLE:
+				animated_sprite.play(ANIM_IDLE)
+		State.BLOCK:
+			if current_anim != ANIM_DEFEND:
+				animated_sprite.play(ANIM_DEFEND)
+		_:
+			# IDLE or CHASE states - check movement
+			if is_defending:
+				if current_anim != ANIM_DEFEND:
+					animated_sprite.play(ANIM_DEFEND)
+			elif velocity.length() > 0.1:
+				# Moving
+				if current_anim != ANIM_MOVE:
+					animated_sprite.play(ANIM_MOVE)
+				# Play footstep sound occasionally (optimized)
+				if sfx_footstep and not sfx_footstep.playing and randf() < 0.1:
+					sfx_footstep.play()
+			else:
+				# Idle
+				if current_anim != ANIM_IDLE:
+					animated_sprite.play(ANIM_IDLE)
 
 func _on_frame_changed() -> void:
 	# Track death animation completion
